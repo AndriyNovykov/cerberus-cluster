@@ -54,8 +54,9 @@
     dest: /tmp/pyxis
   ignore_errors: true
 
-- name: compile 
-  command: bash -c "sudo make install"
+- name: compile
+  become: true
+  command: make install
   args:
     chdir: /tmp/pyxis/
   ignore_errors: true
