@@ -48,7 +48,7 @@ procedure.
 - **NVSwitch systems** (HGX baseboards, profile `fabric_manager: true`) get
   `nvidia-fabricmanager` version-matched to the driver, and slurmd is ordered
   after it — required for the GPUs to be usable at all.
-- **Storage**: the controller exports `/home` and a cluster NFS share
+- **Storage**: the controller exports `/clusterhome` (shared LDAP-user homes) and a cluster NFS share
   (interim). A future CephFS mounts via the `add_nfs` hook in the inventory
   without role changes.
 

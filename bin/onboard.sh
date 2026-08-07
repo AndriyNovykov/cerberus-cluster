@@ -39,9 +39,9 @@ cluster user add "$cluster_username" --gid "$group_id" --password "$user_passwor
 # Create Slurm user
 sudo sacctmgr create user --immediate "$cluster_username" DefaultAccount="$lab_name" || error_exit "Failed to create Slurm user for: $cluster_username"
 # Add SSH key
-echo "$ssh_key" | sudo tee -a /home/$cluster_username/.ssh/authorized_keys
+echo "$ssh_key" | sudo tee -a /clusterhome/$cluster_username/.ssh/authorized_keys
 # Set Filesystem Quotas
-# TODO(ceph): once /home moves to CephFS, set a quota here, e.g.:
-#   sudo setfattr -n ceph.quota.max_bytes -v $((500*1024*1024*1024)) /home/$cluster_username
+# TODO(ceph): once /clusterhome moves to CephFS, set a quota here, e.g.:
+#   sudo setfattr -n ceph.quota.max_bytes -v $((500*1024*1024*1024)) /clusterhome/$cluster_username
 
 echo "Onboarding process completed for $cluster_username."

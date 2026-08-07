@@ -77,7 +77,7 @@ Controller:
 ```bash
 systemctl status slurmctld slurmdbd mariadb slapd prometheus grafana-server
 sinfo
-showmount -e localhost   # /home and /export/cluster
+showmount -e localhost   # /clusterhome and /export/cluster
 ```
 
 lucid (H100 NVL):
@@ -100,7 +100,7 @@ Cross-cutting:
 
 ```bash
 cluster user add testuser          # on sv5
-ssh lucid                          # as testuser: LDAP + NFS home work
+ssh lucid                          # as testuser: LDAP + /clusterhome NFS home work
 sacct -u testuser                  # accounting rows appear
 sudo reboot                        # on hgx01: node must return to service
                                    # unattended (FM before slurmd)
@@ -115,7 +115,7 @@ sudo reboot                        # on hgx01: node must return to service
 - **CephFS migration**: when the Ceph cluster exists, set in
   `/etc/ansible/hosts`: `add_nfs=true`, `nfs_source_IP=<ganesha/mon IP>`,
   `nfs_source_path=<export>`, `nfs_target_path=/nfs/scratch`, re-run
-  `bin/configure.sh`. Moving `/home` onto CephFS replaces the controller's
+  `bin/configure.sh`. Moving `/clusterhome` onto CephFS replaces the controller's
   nfs-server export; plan a maintenance window and rsync.
 - **User onboarding**: `bin/onboard.sh` (set the variables at the top first).
   Ceph quota TODO is marked inside the script.

@@ -59,10 +59,18 @@
       Reboot {{ inventory_hostname }} and re-run configure.sh.
   when: nvidia_module.stdout | trim == '0'
 
+# Some pre-provisioned installs (e.g. .run-file drivers) ship no
+# nvidia-persistenced unit; enable it only when the unit exists
+- name: Check for nvidia-persistenced unit
+  command: systemctl cat nvidia-persistenced
+  register: persistenced_unit
+  failed_when: false
+  changed_when: false
+
 - name: Enable nvidia-persistenced
   become: true
   service:
     name: nvidia-persistenced
     enabled: yes
     state: started
-  when: nvidia_module.stdout | trim != '0'
+  when: nvidia_module.stdout | trim != '0' and persistenced_unit.rc == 0
