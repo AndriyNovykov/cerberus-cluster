@@ -17,8 +17,8 @@ sv5 ansible_host=10.0.0.10 ansible_user=ubuntu role=controller ansible_python_in
 [compute_to_add]
 
 [compute_configured]
-hgx01 ansible_host=10.0.0.21 ansible_user=ubuntu role=compute node_profile=a100-hgx8
-lucid ansible_host=10.0.0.22 ansible_user=ubuntu role=compute node_profile=h100nvl-1
+hgxa100 ansible_host=10.0.0.21 ansible_user=ubuntu role=compute node_profile=a100-hgx8
+lucid ansible_host=10.0.0.22 ansible_user=exx role=compute node_profile=h100nvl-1
 
 [compute_to_destroy]
 
