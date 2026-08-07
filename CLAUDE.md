@@ -4,88 +4,65 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-This is an OCI (Oracle Cloud Infrastructure) HPC/GPU Slurm cluster stack — a fork of the
-`oci-hpc` quickstart maintained for CAIS (Center for AI Safety). It deploys a Slurm cluster
-(controller + optional HA backup + login + compute nodes on RDMA cluster networks or instance
-pools) via **OCI Resource Manager (ORM)**. There is no application to build/lint/test locally;
-the "product" is the Terraform + Ansible + scripts that get deployed.
+An **on-prem bare-metal Slurm cluster stack** (branch `on-prem-rework`) — originally a fork of
+the OCI `oci-hpc` quickstart maintained for CAIS; the OCI/Terraform version lives on `main`.
+There is no application to build/lint/test locally; the "product" is the Ansible playbooks and
+operational scripts that configure hand-installed Ubuntu 24.04 nodes.
 
-Two layers do all the work:
+One layer does all the work:
 
-- **Terraform** (`*.tf` at repo root, plus `autoscaling/tf_init/`) — provisions OCI IaaS:
-  controller (`controller.tf`, `slurm_ha.tf`), login node (`login.tf`), compute nodes
-  (`compute-nodes.tf`, `instance-pool*.tf`, `cluster-network*.tf`, `compute-cluster.tf`),
-  networking (`network.tf`), shared storage (`fss.tf`), monitoring/DB (`monitoring.tf`,
-  `mysql.tf`), and Marketplace images (`marketplace.tf`, `oci_images.tf`). `locals.tf` and
-  `variables.tf` centralize computed values and inputs; `schema.yaml` defines the ORM UI form.
-- **Ansible** (`playbooks/`) — configures the nodes after provisioning. `playbooks/site.yml` is
-  the primary entrypoint; behavior is composed from ~60 roles in `playbooks/roles/`
-  (slurm, openldap/sssd, nvidia-*, rdma-interface, nfs-*, grafana/influxdb/telegraf, etc.).
-  `playbooks/group_vars/all.yml` holds shared vars.
+- **Ansible** (`playbooks/`) — `playbooks/site.yml` is the primary entrypoint, composing ~40
+  roles in `playbooks/roles/` (slurm, openldap/sssd, nvidia-driver/nvidia-fabricmanager,
+  nfs-server/nfs-client, grafana/prometheus/metrics-exporter, docker/nvidia-enroot, cais-*).
+  It runs against a **hand-written static inventory** at `/etc/ansible/hosts`
+  (template: `samples/inventory.example`) — there is no Terraform and no cloud metadata.
 
-`bin/` scripts are the **day-2 operational glue** that runs on the controller and stitches the
-two layers together (calls the OCI SDK for IaaS changes, then re-runs the relevant playbooks).
+Key concepts:
 
-## Deployed layout (important for reading the code)
+- **`node_profiles`** in `playbooks/group_vars/all.yml` is the hardware catalog: GPU type/count,
+  `fabric_manager` requirement, Slurm `features`, and `gres_entries` (with CPU affinity ranges
+  derived from `nvidia-smi topo -m`). Each compute host selects one via the `node_profile`
+  inventory variable. This replaces the old OCI shape if-ladders — new hardware = new profile +
+  inventory line.
+- **Configless Slurm with dynamic nodes**: compute nodes run `slurmd -Z` carrying their
+  profile's `Gres=`/`Feature=` strings; `slurm.conf` never enumerates nodes. One default
+  partition (`main`); target hardware via `--constraint=<feature>` or `--gres=gpu:<Type>:<n>`.
+  NodeSets are generated from the union of profile features.
+- **NVSwitch nodes** (profile `fabric_manager: true`, e.g. HGX A100) require
+  nvidia-fabricmanager version-matched to the driver (`nvidia_driver_branch` in group_vars);
+  slurmd is systemd-ordered after it. Without FM the GPUs are unusable.
+- **Slurm packages are built locally** with `scripts/build-slurm-debs.sh` into
+  `/opt/oci-hpc/slurm_debs/` on the controller; `roles/slurm/tasks/common.yml` copies from
+  there (fails with instructions if missing). Version pin: `slurm_version` in
+  `roles/slurm/defaults/main.yml`.
 
-The repo is deployed to **`/opt/oci-hpc`** on the controller. README instructions and scripts
-reference absolute paths there, which map directly to this repo:
+## Deployed layout
 
-- `/opt/oci-hpc/bin/`  ⇄  `bin/`
-- `/opt/oci-hpc/playbooks/`  ⇄  `playbooks/`
-- `/opt/oci-hpc/conf/queues.conf` — live queue/instance-type config (template: `conf/queues.conf.example`)
-- `/opt/oci-hpc/autoscaling/clusters/<name>/` — per-cluster Terraform state for autoscaled/manual clusters
-- `/opt/oci-hpc/logs/` — `create_<cluster>_<date>.log`, `delete_...`, `crontab_slurm.log`
-- `/etc/ansible/hosts` — the generated Ansible inventory (roles branch on host groups: `controller`, `slurm_backup`, `login`, `compute`, `monitoring`)
+The repo is deployed to **`/opt/oci-hpc`** on the controller (path kept from the OCI era —
+~200 references; do not rename casually):
 
-## Key operational commands (run on the controller)
+- `/opt/oci-hpc/bin/` ⇄ `bin/` — `controller.sh` (bootstrap), `configure.sh` (run site.yml),
+  `slurm_config.sh [--initial]`, `onboard.sh` (LDAP+Slurm user onboarding)
+- `/opt/oci-hpc/conf/queues.conf` — minimal static queue file loaded via `vars_files`
+- `/etc/ansible/hosts` — the static inventory; host groups `controller`, `slurm_backup`,
+  `login`, `monitoring`, `compute` (children `compute_to_add`+`compute_configured`), `nfs`
 
-Resize an existing cluster network (add/remove/reconfigure nodes; wraps `resize.py` + Ansible):
-```bash
-/opt/oci-hpc/bin/resize.sh add 3 --cluster_name compute-1-hpc
-/opt/oci-hpc/bin/resize.sh remove --nodes inst-abc-woodcock
-/opt/oci-hpc/bin/resize.sh reconfigure          # re-runs cluster-creation playbooks on all nodes
-```
-Manual cluster create/delete (used by autoscaling too):
-```bash
-/opt/oci-hpc/bin/create_cluster.sh <NodeCount> <clustername> <instance_type> <queue_name>
-/opt/oci-hpc/bin/delete_cluster.sh <clustername> [FORCE]
-```
-Apply queue config changes after editing `conf/queues.conf`:
-```bash
-/opt/oci-hpc/bin/slurm_config.sh            # regenerate Slurm partitions from queues.conf
-/opt/oci-hpc/bin/slurm_config.sh --initial  # reset Slurm to initial state
-```
-Autoscaling is a cronjob (cluster-per-queued-job; idle clusters torn down after a grace period):
-```bash
-* * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm.log 2>&1
-```
-User management (LDAP, when controller is the LDAP server): `cluster user add <name> [--gid 9876] [--nossh]`
-
-Diagnostics (aliases on the controller): `validate` (`scripts/validation.py` — node-count consistency,
-PCIe bandwidth, GPU throttle, `/etc/hosts` md5), `max_nodes` (`scripts/max_nodes_partition.py`),
-`scripts/collect_logs.py` (nvidia bug report + sosreport + console history).
-
-## Running Ansible / Terraform directly
-
-- Configure step invoked by the stack: `bin/configure.sh [playbook] [inventory]` — defaults to
-  `playbooks/site.yml` against `/etc/ansible/hosts`. Autoscaled clusters use `bin/configure_as.sh`.
-- Terraform is normally driven by ORM, not `terraform apply` by hand. Requires provider
-  `oracle/oci >= 6.9.0`, Terraform `>= 1.2` (`versions.tf`). `provider.tf` is intentionally
-  commented out — ORM injects credentials; uncomment only for local/instance-principal runs.
+Full bootstrap procedure: `docs/onprem-deploy.md`.
 
 ## Conventions & gotchas
 
-- **`queues.conf` is the source of truth** for shapes/queues. Instance types are selected from a
-  job via `--constraint <instance_type>` or `-p <queue>`; there is one default instance-type per
-  queue and one default queue. Leave all fields present even when unused. `permanent: true` clusters
-  are never auto-torn-down; the initial stack cluster is also never spun down.
-- **Resizing ≠ autoscaling.** Resizing changes an existing cluster's size (may hit RDMA-island
-  capacity limits since RDMA is non-virtualized); autoscaling launches a *new* cluster per job and
-  never resizes up. Resizing via the OCI console alone does **not** run the Ansible reconfig — always
-  go through `resize.sh` so `/etc/hosts`, Slurm, and topology stay consistent.
-- **Multi-OS support** (`OL7`/`OL8`/`Ubuntu 22.04`): roles branch on `ansible_os_family` and have
-  per-distro task files (e.g. `roles/sssd/tasks/{el-7,el-8,debian}.yml`). When editing a role, update
-  every OS variant, not just one. On Ubuntu the instance username is `ubuntu`, on OL it is `opc`.
-- Unreachable nodes block cluster modification unless `--remove_unreachable` is passed to `resize.sh`.
-- `.gitignore` only excludes `.DS_Store`; be careful not to commit generated state or secrets.
+- **Ubuntu 24.04 only.** EL/OL task files still exist in some roles but are dead code; when
+  editing a role touch the `ubuntu`/`debian` variant.
+- All cluster variables flow from the inventory `[all:vars]` block plus
+  `playbooks/group_vars/all.yml` — `group_vars` holds ssl vars, `node_profiles`, and
+  `nvidia_driver_branch`; everything else comes from the inventory.
+- First `configure.sh` run installs NVIDIA drivers; GPU nodes need a reboot, then re-run
+  (idempotent).
+- Storage today: controller exports `/home` and `/export/cluster` over NFS. CephFS later mounts
+  via the `add_nfs`/`nfs_source_*` inventory hook — don't build new mount plumbing.
+- `healthchecks=False` in the inventory: `roles/healthchecks` and the custom metrics under
+  `roles/metrics-exporter` still contain OCI metadata calls (documented gaps); the
+  `cluster_network` flag gates all RDMA-fabric behavior and is `False` until a real fabric
+  exists.
+- Syntax-check after playbook edits:
+  `ansible-playbook --syntax-check playbooks/site.yml -i samples/inventory.example`
