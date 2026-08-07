@@ -2,6 +2,13 @@ ssl_cert_path: '/etc/ssl/certs'
 ssl_ca_cert: '{{ ssl_cert_path }}/cluster-ca.crt'
 ssl_cert_group: ssl
 
+# Datacenter driver branch from the Ubuntu archive. The -server branches track
+# NVIDIA's datacenter drivers and have matching nvidia-fabricmanager-<major>
+# packages. The fabric manager major version must exactly match the driver, so
+# both nvidia roles consume this variable and hold the packages together.
+nvidia_driver_branch: "570-server"
+nvidia_driver_package: "nvidia-driver-{{ nvidia_driver_branch }}"
+
 # Node hardware profiles. Each compute host selects one via the node_profile
 # inventory variable; profiles drive the slurmd Gres/Feature line, gres.conf,
 # GPU-role gating (drivers, fabric manager, exporters), and limits.

@@ -1,0 +1,57 @@
+---
+- name: Blacklist nouveau
+  become: true
+  copy:
+    dest: /etc/modprobe.d/blacklist-nouveau.conf
+    content: |
+      blacklist nouveau
+      options nouveau modeset=0
+    mode: '0644'
+  register: nouveau_blacklist
+
+- name: Update initramfs after nouveau blacklist
+  become: true
+  command: update-initramfs -u
+  when: nouveau_blacklist.changed
+
+- name: Install NVIDIA datacenter driver
+  vars:
+    package_name:
+      - "{{ nvidia_driver_package }}"
+      - "nvidia-utils-{{ nvidia_driver_branch }}"
+    package_state: present
+    package_cache: true
+  include_role:
+    name: safe_yum
+
+- name: Hold the driver packages so apt upgrade cannot split driver/FM versions
+  become: true
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - "{{ nvidia_driver_package }}"
+    - "nvidia-utils-{{ nvidia_driver_branch }}"
+
+- name: Check whether the nvidia module is loaded
+  shell: lsmod | grep -c '^nvidia ' || true
+  register: nvidia_module
+  changed_when: false
+
+# A freshly installed driver needs a reboot (nouveau may hold the devices and
+# the DKMS module is built for the running kernel). Flag it instead of
+# rebooting mid-play; re-run configure.sh after the reboot.
+- name: Warn if a reboot is required to load the NVIDIA driver
+  debug:
+    msg: >-
+      NVIDIA driver installed but the kernel module is not loaded.
+      Reboot {{ inventory_hostname }} and re-run configure.sh.
+  when: nvidia_module.stdout | trim == '0'
+
+- name: Enable nvidia-persistenced
+  become: true
+  service:
+    name: nvidia-persistenced
+    enabled: yes
+    state: started
+  when: nvidia_module.stdout | trim != '0'

@@ -1,0 +1,41 @@
+---
+# NVSwitch systems (HGX A100/H100 8-GPU baseboards) require the fabric manager
+# to initialize the NVLink fabric; without it the GPUs are unusable for CUDA.
+# The package major version must exactly match the installed driver branch.
+- name: Install nvidia-fabricmanager matching the driver branch
+  vars:
+    package_name:
+      - "nvidia-fabricmanager-{{ nvidia_driver_branch.split('-')[0] }}"
+    package_state: present
+    package_cache: true
+  include_role:
+    name: safe_yum
+
+- name: Hold the fabric manager package
+  become: true
+  dpkg_selections:
+    name: "nvidia-fabricmanager-{{ nvidia_driver_branch.split('-')[0] }}"
+    selection: hold
+
+- name: Check whether the nvidia module is loaded
+  shell: lsmod | grep -c '^nvidia ' || true
+  register: nvidia_module
+  changed_when: false
+
+- name: Enable and start nvidia-fabricmanager
+  become: true
+  service:
+    name: nvidia-fabricmanager
+    enabled: yes
+    state: started
+  when: nvidia_module.stdout | trim != '0'
+
+- name: Verify fabric state
+  shell: nvidia-smi -q | grep -A2 -i 'Fabric' | grep -i 'State' || true
+  register: fabric_state
+  changed_when: false
+  when: nvidia_module.stdout | trim != '0'
+
+- name: Report fabric state
+  debug:
+    msg: "{{ fabric_state.stdout | default('driver not loaded; reboot required before fabric verification') }}"

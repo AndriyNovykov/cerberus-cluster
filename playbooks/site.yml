@@ -86,8 +86,17 @@
     - include_role: 
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role: 
+    - include_role:
         name: healthchecks
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks:
+    - include_role:
+        name: nvidia-driver
+    - include_role:
+        name: nvidia-fabricmanager
 
 - hosts: controller
   become: true
