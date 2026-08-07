@@ -1,14 +1,24 @@
 ---
 
+# apt-key was removed in Ubuntu 25.04+; use a signed-by keyring instead
+- name: Ensure apt keyrings directory exists
+  become: true
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
 - name: add key
-  apt_key:
+  become: true
+  get_url:
     url: "{{ libnvidia_container_repo_gpg_url }}"
-    state: present
+    dest: /etc/apt/keyrings/nvidia-container-toolkit.asc
+    mode: '0644'
 
 # NVIDIA's repo is distro-agnostic now: one deb path serves all releases
 - name: add repo
   apt_repository:
-    repo: "deb {{ libnvidia_container_repo_base_url }}/stable/deb/amd64 /"
+    repo: "deb [signed-by=/etc/apt/keyrings/nvidia-container-toolkit.asc] {{ libnvidia_container_repo_base_url }}/stable/deb/amd64 /"
     filename: nvidia-container-toolkit
     state: present
 

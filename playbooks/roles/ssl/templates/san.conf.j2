@@ -11,5 +11,8 @@ commonName          = Common Name (e.g. server FQDN)
 [ req_ext ]               
 subjectAltName = @alt_names                         
 
-[alt_names]               
+[alt_names]
 DNS.1 = {{ ssl_cert_altname }}
+DNS.2 = {{ ansible_fqdn }}
+DNS.3 = {{ ansible_hostname }}
+DNS.4 = controller

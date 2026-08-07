@@ -16,14 +16,24 @@
     ignore_errors: true
 
 
+  # apt-key was removed in Ubuntu 25.04+; use a signed-by keyring instead
+  - name: Ensure apt keyrings directory exists
+    become: true
+    file:
+      path: /etc/apt/keyrings
+      state: directory
+      mode: '0755'
+
   - name: Add Docker GPG apt Key
-    apt_key:
+    become: true
+    get_url:
       url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
+      dest: /etc/apt/keyrings/docker.asc
+      mode: '0644'
 
   - name: Add Docker Repository
     apt_repository:
-      repo: deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+      repo: deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
       state: present
 
   - name: Update apt and install pre-req packages for docker

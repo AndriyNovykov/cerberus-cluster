@@ -214,8 +214,12 @@
         - config.ldif
         - local.ldif
         - memberof.ldif
-      when: ansible_distribution_version == '22.04'
+      when: ansible_distribution_version is version('22.04', '>=')
       notify: restart openldap
+
+    # Restart slapd now so the TLS configuration above is live before we bind
+    # over ldaps below
+    - meta: flush_handlers
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
@@ -225,9 +229,8 @@
 
     - name: Load OpenLDAP local schema
       command: >
-        ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
+        ldapadd -x -H ldaps://{{ ansible_hostname }} -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                              -f /etc/ldap/schema/local_schema.ldif
-      ignore_errors: true
       when: ldapsearch.rc == 32
 
 - meta: flush_handlers
