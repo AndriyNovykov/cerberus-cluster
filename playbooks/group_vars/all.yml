@@ -24,7 +24,8 @@ node_profiles:
     fabric_manager: true
     features: [a100, gpu]
     gres_entries:
-      # Placeholder split by socket (2x EPYC 7742) — verify with nvidia-smi topo -m
+      # Verified on hgxa100 via nvidia-smi topo -m (2026-08-07): GPUs 0-3 on
+      # NUMA 0 (cores 0-63), GPUs 4-7 on NUMA 1 (cores 64-127)
       - { files: "/dev/nvidia[0-3]", cores: "0-63" }
       - { files: "/dev/nvidia[4-7]", cores: "64-127" }
     slurmd_extra: ""
@@ -35,7 +36,8 @@ node_profiles:
     fabric_manager: false
     features: [h100nvl, gpu]
     gres_entries:
-      - { files: "/dev/nvidia0", cores: "" }
+      # Verified on lucid via nvidia-smi topo -m (2026-08-07): NUMA 0, cores 0-15
+      - { files: "/dev/nvidia0", cores: "0-15" }
     slurmd_extra: ""
   cpu:
     gpu: false
