@@ -156,7 +156,7 @@
       args:
         creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
       with_items: '{{ openldap_schemas_22 }}'
-      when: ansible_distribution_version == '22.04'
+      when: ansible_distribution_version is version('22.04', '>=')
 
     - name: Render OpenLDAP configuration - config
       template:
