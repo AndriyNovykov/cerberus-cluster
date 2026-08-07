@@ -1,7 +1,6 @@
 ---
 # PEP 668: system pip is blocked on Ubuntu 23.04+; use the distro package
 - name: Install prometheus_client python package
-  become: yes
   vars:
     package_name:
       - python3-prometheus-client
