@@ -45,15 +45,12 @@
     state: directory
   delegate_to: localhost
 
-- name: Check Grafana API key list
+# /api/auth/keys was removed in Grafana 11; this is only an is-it-up probe
+- name: Wait for Grafana to answer
   uri:
-    url: "{{ grafana_api_url }}/api/auth/keys"
+    url: "{{ grafana_api_url }}/api/health"
     method: GET
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
     return_content: true
-  no_log: false
   register: result
   until: result is not failed
   retries: 5
