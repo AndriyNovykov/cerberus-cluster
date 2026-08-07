@@ -1,5 +1,13 @@
 ---
 
+# Pre-provisioned nodes may already carry the repo with a different keyring;
+# adding a second entry makes apt fail on conflicting Signed-By values
+- name: Check for an existing nvidia-container-toolkit repo
+  shell: grep -rls "nvidia.github.io/libnvidia-container" /etc/apt/sources.list.d/ | grep -v "^/etc/apt/sources.list.d/nvidia-container-toolkit.list$" | head -1
+  register: existing_nvct_repo
+  failed_when: false
+  changed_when: false
+
 # apt-key was removed in Ubuntu 25.04+; use a signed-by keyring instead
 - name: Ensure apt keyrings directory exists
   become: true
@@ -7,6 +15,7 @@
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
+  when: existing_nvct_repo.stdout == ""
 
 - name: add key
   become: true
@@ -14,6 +23,7 @@
     url: "{{ libnvidia_container_repo_gpg_url }}"
     dest: /etc/apt/keyrings/nvidia-container-toolkit.asc
     mode: '0644'
+  when: existing_nvct_repo.stdout == ""
 
 # NVIDIA's repo is distro-agnostic now: one deb path serves all releases
 - name: add repo
@@ -21,6 +31,7 @@
     repo: "deb [signed-by=/etc/apt/keyrings/nvidia-container-toolkit.asc] {{ libnvidia_container_repo_base_url }}/stable/deb/amd64 /"
     filename: nvidia-container-toolkit
     state: present
+  when: existing_nvct_repo.stdout == ""
 
 - name: Install nvidia-container-toolkit
   vars:

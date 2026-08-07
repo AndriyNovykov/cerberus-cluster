@@ -64,12 +64,13 @@
 # Slurm debs are built locally (scripts/build-slurm-debs.sh) and stored on the
 # controller in {{ slurm_deb_store }}; they get copied into the shared
 # download_path so every node installs the same artifact.
+# NOTE: no run_once here — the deb filename embeds each host's distro version,
+# so on mixed-version fleets these must evaluate per host.
 - name: Check that the Slurm deb exists on the controller
   stat:
     path: "{{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
   register: slurm_deb_local
   delegate_to: 127.0.0.1
-  run_once: true
 
 - name: Fail with build instructions when the Slurm deb is missing
   fail:
@@ -79,14 +80,13 @@
       /opt/oci-hpc/scripts/build-slurm-debs.sh (see docs/onprem-deploy.md).
   when: not slurm_deb_local.stat.exists
   delegate_to: 127.0.0.1
-  run_once: true
 
 - name: Copy the Slurm deb into the shared download path
   copy:
     src: "{{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
     dest: "{{ download_path }}/slurm_rpms/"
   delegate_to: 127.0.0.1
-  run_once: true
+  throttle: 1
   when: download_path != '/tmp'
 
 - name: Copy the Slurm deb to each node
