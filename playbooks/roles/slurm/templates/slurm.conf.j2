@@ -89,9 +89,10 @@ PriorityWeightJobSize=1000
 
 PriorityWeightTRES=CPU=10,GRES/gpu=1000
 
-{% if sacct_limits|bool %}
+# gres/gpu must be a configured TRES type for PriorityWeightTRES to parse
 AccountingStorageTRES=gres/gpu{% for p in node_profiles.values() if p.gpu %},gres/gpu:{{ p.gpu_type }}{% endfor %}
 
+{% if sacct_limits|bool %}
 AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
