@@ -1,9 +1,13 @@
 ---
+# PEP 668: system pip is blocked on Ubuntu 23.04+; use the distro package
 - name: Install prometheus_client python package
-  ansible.builtin.pip:
-    name: prometheus_client 
-    executable: /usr/bin/pip3  
   become: yes
+  vars:
+    package_name:
+      - python3-prometheus-client
+    package_state: present
+  include_role:
+    name: safe_yum
 
 - name: Copy service file to scripts directory
   copy:

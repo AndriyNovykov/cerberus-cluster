@@ -36,6 +36,6 @@
   file:
     path: "{{ local_path }}"
     state: directory
-    owner: ubuntu
+    owner: "{{ ansible_user }}"
     group: "{{privilege_group_name}}"
     mode: 0775
