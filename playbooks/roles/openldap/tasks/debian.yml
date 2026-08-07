@@ -222,15 +222,19 @@
     - meta: flush_handlers
 
     - name: Check local schemas
-      command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
+      command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "cn=uid,dc=local" -s base'
       register: ldapsearch
       failed_when: false
       changed_when: false
 
+    # -c continues past "already exists" (rc 68) so a partially-created tree
+    # from an interrupted run still converges
     - name: Load OpenLDAP local schema
       command: >
-        ldapadd -x -H ldaps://{{ ansible_hostname }} -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
+        ldapadd -c -x -H ldaps://{{ ansible_hostname }} -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                              -f /etc/ldap/schema/local_schema.ldif
+      register: ldapadd_result
+      failed_when: ldapadd_result.rc not in [0, 68]
       when: ldapsearch.rc == 32
 
 - meta: flush_handlers
