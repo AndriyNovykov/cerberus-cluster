@@ -61,104 +61,39 @@
   run_once: true
   when: download_path != '/tmp'
 
-- name: Download Slurm DEB
-  block:
-    - name: Download in shared location
-      block: 
-      - name: Check if the deb file exists 
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        register: slurm_dwld
-        delegate_to: 127.0.0.1
-        run_once: true
-      - name: First try downloading .deb
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not slurm_dwld.stat.exists )
-        delegate_to: 127.0.0.1
-        run_once: true  
-      when: download_path != '/tmp'
+# Slurm debs are built locally (scripts/build-slurm-debs.sh) and stored on the
+# controller in {{ slurm_deb_store }}; they get copied into the shared
+# download_path so every node installs the same artifact.
+- name: Check that the Slurm deb exists on the controller
+  stat:
+    path: "{{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+  register: slurm_deb_local
+  delegate_to: 127.0.0.1
+  run_once: true
 
-    - name: Download on each node
-      block:  
-      - name: Check if the deb file exists in /tmp
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        register: slurm_dwld
-      - name: First try downloading .deb in /tmp
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not slurm_dwld.stat.exists )
-      when: download_path == '/tmp'
-  rescue:
-    - name: Second try downloading .deb
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path != '/tmp'
-      delegate_to: 127.0.0.1
-      run_once: true 
-    - name: Second try downloading .deb in /tmp
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path == '/tmp'
-  when: ansible_os_family == 'Debian'
+- name: Fail with build instructions when the Slurm deb is missing
+  fail:
+    msg: >-
+      {{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb
+      not found on the controller. Build it with
+      /opt/oci-hpc/scripts/build-slurm-debs.sh (see docs/onprem-deploy.md).
+  when: not slurm_deb_local.stat.exists
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Download Slurm RPMs
-  block:
-    - name: Download on each node
-      block: 
-      - name: Check if the RPMs exist in tmp
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/{{item}}"
-        register: slurm_dwld_tmp
-        with_items: "{{slurm_all_packages}}"
-      - name: First try downloading RPMs in tmp
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not item.stat.exists )
-        with_items: "{{slurm_dwld_tmp.results}}"
-      when: download_path == '/tmp'
+- name: Copy the Slurm deb into the shared download path
+  copy:
+    src: "{{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+    dest: "{{ download_path }}/slurm_rpms/"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: download_path != '/tmp'
 
-    - name: Download in shared location
-      block:   
-      - name: Check if the RPMs exist
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/{{item}}"
-        register: slurm_dwld
-        delegate_to: 127.0.0.1
-        run_once: true
-        with_items: "{{slurm_all_packages}}"
-      - name: First try downloading RPMs
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not item.stat.exists )
-        delegate_to: 127.0.0.1
-        run_once: true  
-        with_items: "{{slurm_dwld.results}}"
-      when: download_path != '/tmp'
-
-  rescue:
-    - name: Second try downloading RPMs
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path != '/tmp'
-      delegate_to: 127.0.0.1
-      run_once: true
-      with_items: "{{slurm_all_packages}}"
-    - name: Second try downloading RPMs in tmp
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path == '/tmp'
-      with_items: "{{slurm_all_packages}}"
-  when: ansible_os_family == 'RedHat'
+- name: Copy the Slurm deb to each node
+  copy:
+    src: "{{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+    dest: "{{ download_path }}/slurm_rpms/"
+  when: download_path == '/tmp'
 
 - name: Install .deb
   vars:
@@ -168,15 +103,6 @@
   include_role:
     name: safe_yum
   when: ansible_os_family == 'Debian'
-
-- name: install SLURM common packages RedHat
-  vars:
-    package_name: '{{ slurm_common_packages }}'
-    package_repo: "{{slurm_repos}}"
-    disable_gpg_check_var: True
-  include_role:
-    name: safe_yum
-  when: ansible_os_family == 'RedHat'
 
 - name: Add Environment variable file for SLurm
   become: true

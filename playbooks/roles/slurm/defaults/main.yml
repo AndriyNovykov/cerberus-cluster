@@ -8,5 +8,7 @@ slurm_gid: 1501
 slurm_uid: 1501
 munge_gid: 1500
 munge_uid: 1500
-rack_aware_playbook_suffix: "{% if rack_aware|bool %}-rack-aware{% endif%}"
+rack_aware_playbook_suffix: ""
 slurm_version: "24.05.1-1"
+# Controller-local store for locally-built Slurm debs (scripts/build-slurm-debs.sh)
+slurm_deb_store: "/opt/oci-hpc/slurm_debs"

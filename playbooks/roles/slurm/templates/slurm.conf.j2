@@ -22,7 +22,6 @@ SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
-# Needed to prevent slurm from allocating nodes dedicated to Weka
 TaskPluginParam=SlurmdOffSpec
 #JobContainerType=job_container/tmpfs
 InactiveLimit=0
@@ -53,9 +52,9 @@ DefMemPerGPU=200000
 DefCpuPerGPU=2
 PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=block_null_hash
-TopologyPlugin=topology/tree
-TopologyParam=SwitchAsNodeRank
-TreeWidth=2048
+# Flat 3-node cluster: no topology plugin. Revisit when an RDMA fabric with
+# real switch hierarchy exists.
+TopologyPlugin=topology/none
 SlurmctldParameters=enable_configless
 MaxNodeCount=10000
 {% if healthchecks|bool %}
@@ -91,7 +90,8 @@ PriorityWeightJobSize=1000
 PriorityWeightTRES=CPU=10,GRES/gpu=1000
 
 {% if sacct_limits|bool %}
-AccountingStorageTRES=gres/gpu,gres/gpu:A100
+AccountingStorageTRES=gres/gpu{% for p in node_profiles.values() if p.gpu %},gres/gpu:{{ p.gpu_type }}{% endfor %}
+
 AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
@@ -107,36 +107,22 @@ PreemptMode=REQUEUE,GANG
 NodeName={{ hostvars[groups['login'][0]]['ansible_fqdn'].split('.')[0] }}
 {% endif %}
 
-{% for partition in queues %}
-{% for instance in partition.instance_types %}
-Nodeset=cais Feature=cais # NodeSet for CAIS nodes
-NodeSet=schmidt_sciences Feature=schmidt_sciences # NodeSet for Schmidt Sciences nodes
-NodeSet=tamper_resistance Feature=tamper_resistance # NodeSet for Tamper Resistance nodes
+# NodeSets are generated from the union of node_profiles features. Dynamic
+# slurmd nodes register with their profile's Feature list, so every profile
+# feature (a100, h100nvl, gpu, cpu, ...) gets a matching NodeSet for free.
+{% set all_features = [] %}
+{% for p in node_profiles.values() %}
+{% for f in p.features | default([]) %}
+{% if f not in all_features %}
+{{ all_features.append(f) or "" }}
+{%- endif %}
 {% endfor %}
 {% endfor %}
-
-{% for partition in queues %}
-{% if partition.default  %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{{ nodesList.append(instance.name)}}
-{%- endfor %}
-# CAIS partition
-PartitionName=cais_cpu Nodes=cais DefaultTime=02:00:00 MaxTime=2-0 State=UP PriorityTier=3 PreemptMode=OFF #AllowGroups=cais,spar,ubuntu QOS=cpuonly
-PartitionName=cais Nodes=cais DefaultTime=02:00:00 MaxTime=1-0 State=UP PriorityTier=2 PreemptMode=OFF 
-
-# Schmidt Sciences partition
-PartitionName=schmidt_sciences_cpu Nodes=schmidt_sciences DefaultTime=02:00:00 MaxTime=2-0 State=UP PriorityTier=2 PreemptMode=OFF #DenyAccounts=cais,spar QOS=cpuonly
-PartitionName=schmidt_sciences Nodes=schmidt_sciences DefaultTime=02:00:00 MaxTime=1-0 State=UP PriorityTier=1 PreemptMode=OFF  
-
-# Tamper Resistance partition
-PartitionName=tamper_resistance_cpu Nodes=tamper_resistance DefaultTime=02:00:00 MaxTime=2-0 State=UP PriorityTier=3 PreemptMode=OFF #DenyAccounts=cais,spar,schmidt_sciences QOS=cpuonly
-PartitionName=tamper_resistance Nodes=tamper_resistance DefaultTime=02:00:00 MaxTime=1-0 State=UP PriorityTier=1 PreemptMode=OFF  
-{% else %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{{ nodesList.append(instance.name)}}
-{%- endfor %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO
-{% endif %}
+{% for feature in all_features %}
+NodeSet={{ feature }} Feature={{ feature }}
 {% endfor %}
+
+# Single default partition; target hardware with --gres=gpu:<Type>:<n> or
+# --constraint=<feature>. Per-tenant/priority partitions can be layered on the
+# NodeSets above without touching node definitions.
+PartitionName=main Nodes=ALL Default=YES DefaultTime=02:00:00 MaxTime=7-0 State=UP
