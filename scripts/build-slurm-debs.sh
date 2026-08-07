@@ -16,13 +16,14 @@
 #
 set -euo pipefail
 
+# Read os-release first: it defines VERSION/VERSION_ID and must not clobber ours
+source /etc/os-release
+UBUNTU_VERSION="$VERSION_ID"
+
 VERSION="${SLURM_VERSION:-24.05.1}"
 ITERATION="${SLURM_ITERATION:-1}"
 OUTPUT_DIR="${OUTPUT_DIR:-/opt/oci-hpc/slurm_debs}"
 JOBS=$(nproc)
-
-source /etc/os-release
-UBUNTU_VERSION="$VERSION_ID"
 DEB_NAME="slurm-${VERSION}-${ITERATION}_${UBUNTU_VERSION}_amd64.deb"
 
 BUILD_ROOT=$(mktemp -d /tmp/slurm-build.XXXXXX)
