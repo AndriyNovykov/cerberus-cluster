@@ -10,14 +10,6 @@
         name: hostname
       when: change_hostname  | default(false) | bool
 
-# for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute, login, monitoring
-  become: true
-  tasks:
-    - include_role:
-        name: fix_broken
-      when: ansible_os_family == 'Debian'
-
 - hosts: controller, slurm_backup
   become: true
   tasks:
@@ -30,18 +22,14 @@
     destroy: false
     initial: true
   gather_facts: true
-  roles: 
-    - oci-cloud-agent
+  roles:
     - privilege_group
-    - oci-legacy
     - packages
-    - firewall 
-    - oci-hostname
+    - firewall
     - ssh
     - limits
     - mpi-hostfiles
     - etc-hosts
-    - boot-volume
     - mpivars
     - iptables
 
@@ -101,13 +89,6 @@
     - include_role: 
         name: healthchecks
 
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: nvidia_peermem
-
 - hosts: controller
   become: true
   vars:
@@ -117,40 +98,12 @@
   tasks:
     - include_role:
         name: nfs-server
-      when: home_nfs|bool and (not home_fss|bool)
-
-- hosts: controller
-  become: true
-  vars:
-    tmp_home: "/tmp/home_tmp/"
-    remote_path: "{% if create_home_fss|bool %}/home{% else%}{{home_fss_source_path}}{% endif %}"
-  tasks:
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "{{tmp_home}}"
-        export_host: "{{ home_fss_source_IP }}"
-        export_path: "{{ remote_path }}"
-        options: ""
-        lock: "none"
-      when: home_fss|bool 
-    - include_role:
-        name: fss-home
-      when: home_fss|bool
+      when: home_nfs|bool
 
 - hosts: controller, slurm_backup, login, monitoring
   become: true
   tasks:
     - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ home_fss_source_IP }}"
-        export_path: "{% if create_home_fss|bool %}/home{% else%}{{home_fss_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: home_fss|bool
-    - include_role: 
         name: passwords
 
 - hosts: controller
@@ -162,12 +115,9 @@
     - include_role: 
         name: openldap
       when: ldap|default(true)|bool
-    - include_role: 
+    - include_role:
         name: cluster-cli
       when: ldap|default(true)|bool
-    - include_role:
-        name: no_instance_principal
-      when: not inst_prin|bool 
 
 
 - hosts: compute, login, monitoring
@@ -175,7 +125,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool or home_fss|bool
+      when: home_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -184,53 +134,20 @@
         export_path: "/home"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
-      when: home_nfs|bool and (not home_fss|bool)
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ home_fss_source_IP }}"
-        export_path: "{% if create_home_fss|bool %}/home{% else%}{{home_fss_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: home_nfs|bool and home_fss|bool
- 
+      when: home_nfs|bool
+
 - hosts: controller
   become: true
-  vars: 
+  vars:
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
     local_path:  "/export/cluster"
-    iscsi_ip: "{{ controller_mount_ip }}"
   tasks:
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
-    - include_role: 
+    - include_role:
         name: nfs-server
       when: cluster_nfs|default(true)|bool
-    - include_role: 
+    - include_role:
         name: mysql
-
-- hosts: slurm_backup
-  become: true
-  vars:
-    iscsi_ip: "{{ controller_mount_ip }}"
-    local_path: "/mnt/nfs_backup"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
-
-- hosts: login
-  become: true
-  vars:
-    iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "/mnt/block"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: login_block|default(false)|bool
 
 - hosts: nfs
   become: true
@@ -238,13 +155,8 @@
      export_path: "{{ scratch_nfs_path }}"
      export_name: "scratch"
      local_path:  "/mnt/localdisk/nfs"
-     iscsi_ip: "{{ cluster_mount_ip }}"
-
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
-    - include_role: 
+  tasks:
+    - include_role:
         name: nfs-server
       when: scratch_nfs|default(true)|bool
 
@@ -323,22 +235,6 @@
         name: prometheus
       when: cluster_monitoring|default(false)|bool
 
-- hosts: controller
-  tasks: 
-    - include_role: 
-        name: autoscaling_mon
-      when: autoscaling_monitoring|default(false)|bool
-    - include_role: 
-        name: cron
-    - include_role:
-        name: billing
-      when: billing|default(false)|bool
-
-- hosts: controller
-  tasks:
-    - include_role:
-        name: backups
-
 - hosts: compute
   become: true
   vars:
@@ -372,11 +268,8 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
-  tasks: 
-    - include_role: 
-        name: rack-aware
-      when: rack_aware|default(false)|bool
-    - include_role: 
+  tasks:
+    - include_role:
         name: spack
       when: spack|default(false)|bool
     - include_role: 
