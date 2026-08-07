@@ -2,7 +2,7 @@
 - name: restart sshd
   listen: restart login services
   service:
-    name: sshd
+    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
     state: restarted
     enabled: yes
 

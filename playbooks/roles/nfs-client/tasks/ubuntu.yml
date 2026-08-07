@@ -4,12 +4,14 @@
     name: "{{ nfs_deb_packages }}"
     state: present
 
+# Owner must be a user that exists on every node; admin usernames differ on
+# hand-installed machines, and the mount shadows this directory anyway
 - name: create share directory
   become: true
   file:
     path: "{{ local_path }}"
     state: directory
-    owner: ubuntu
+    owner: "{{ ansible_user }}"
     group: "{{privilege_group_name}}"
     mode: 0775
 
