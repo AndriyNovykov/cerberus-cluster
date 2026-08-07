@@ -25,4 +25,4 @@
     group: "{{ ansible_user }}"
     mode: '0644'
   with_items:
-    - id_rsa.pub
+    - cluster.key.pub
