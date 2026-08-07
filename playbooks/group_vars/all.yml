@@ -1,3 +1,44 @@
 ssl_cert_path: '/etc/ssl/certs'
 ssl_ca_cert: '{{ ssl_cert_path }}/cluster-ca.crt'
 ssl_cert_group: ssl
+
+# Node hardware profiles. Each compute host selects one via the node_profile
+# inventory variable; profiles drive the slurmd Gres/Feature line, gres.conf,
+# GPU-role gating (drivers, fabric manager, exporters), and limits.
+#
+# gres_entries[].cores is the CPU affinity per GPU group (Slurm gres.conf
+# Cores=). Derive real values from `nvidia-smi topo -m` on the node; wrong
+# values only degrade affinity, they don't block scheduling.
+node_profiles:
+  a100-hgx8:
+    gpu: true
+    gpu_type: A100
+    gpu_count: 8
+    fabric_manager: true
+    features: [a100, gpu]
+    gres_entries:
+      # Placeholder split by socket (2x EPYC 7742) — verify with nvidia-smi topo -m
+      - { files: "/dev/nvidia[0-3]", cores: "0-63" }
+      - { files: "/dev/nvidia[4-7]", cores: "64-127" }
+    slurmd_extra: ""
+  h100nvl-1:
+    gpu: true
+    gpu_type: H100NVL
+    gpu_count: 1
+    fabric_manager: false
+    features: [h100nvl, gpu]
+    gres_entries:
+      - { files: "/dev/nvidia0", cores: "" }
+    slurmd_extra: ""
+  cpu:
+    gpu: false
+    gpu_type: ""
+    gpu_count: 0
+    fabric_manager: false
+    features: [cpu]
+    gres_entries: []
+    slurmd_extra: ""
+
+# Profile of the host currently being configured (compute nodes set
+# node_profile in the inventory; controller/login default to cpu).
+this_node_profile: "{{ node_profiles[node_profile | default('cpu')] }}"

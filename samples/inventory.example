@@ -1,0 +1,82 @@
+# Static Ansible inventory for the on-prem cluster.
+# Copy to /etc/ansible/hosts on the controller and edit hosts/vars for your site.
+#
+# Each compute host must set node_profile to a key from the node_profiles map
+# in playbooks/group_vars/all.yml (this selects GPU type/count, gres layout,
+# Slurm features, and whether nvidia-fabricmanager is required).
+
+[controller]
+sv5 ansible_host=10.0.0.10 ansible_user=ubuntu role=controller ansible_python_interpreter=/usr/bin/python3
+
+[slurm_backup]
+
+[login]
+
+[monitoring]
+
+[compute_to_add]
+
+[compute_configured]
+hgx01 ansible_host=10.0.0.21 ansible_user=ubuntu role=compute node_profile=a100-hgx8
+lucid ansible_host=10.0.0.22 ansible_user=ubuntu role=compute node_profile=h100nvl-1
+
+[compute_to_destroy]
+
+[nfs]
+
+[compute:children]
+compute_to_add
+compute_configured
+
+[all:vars]
+ansible_connection=ssh
+cluster_name=cerberus
+queue=cerberus
+instance_type=cerberus
+shape=onprem
+cluster_network=False
+slurm=true
+spack=False
+ldap=true
+enroot=true
+pyxis=true
+pam=true
+sacct_limits=False
+healthchecks=False
+cluster_monitoring=true
+autoscaling=False
+autoscaling_monitoring=False
+monitoring_mysql_ip=localhost
+rack_aware=False
+latency_check=False
+change_hostname=False
+hostname_convention=
+hyperthreading=true
+localdisk=true
+redundancy=False
+log_vol=False
+nvme_path=/mnt/localdisk/
+# --- storage ---
+# Interim: controller exports /home and the cluster NFS share.
+# When CephFS is available, mount it via the add_nfs hook below (or move
+# home_nfs/cluster_nfs off the controller entirely).
+home_nfs=true
+cluster_nfs=true
+cluster_nfs_path=/nfs/cluster
+slurm_nfs_path=/nfs/cluster
+scratch_nfs=False
+scratch_nfs_path=/nfs/scratch
+scratch_nfs_type=nfs
+add_nfs=False
+nfs_target_path=/nfs/scratch
+nfs_source_IP=
+nfs_source_path=
+nfs_options=
+create_fss=False
+# --- users ---
+compute_username=ubuntu
+controller_username=ubuntu
+privilege_sudo=true
+privilege_group_name=privilege
+admin_username=admin
+admin_password=CHANGE_ME

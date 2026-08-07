@@ -1,12 +1,10 @@
 #!/bin/bash
 #
-# Cluster init configuration script
+# Cluster configuration script.
+# Runs the full site.yml (or a given playbook) against /etc/ansible/hosts.
 #
-
+# Usage: configure.sh [playbook] [inventory]
 #
-# wait for cloud-init completion on the controller host
-#
-execution=1
 
 if [ -n "$1" ]; then
   playbook=$1
@@ -20,22 +18,10 @@ else
   inventory="/etc/ansible/hosts"
 fi
 
-
-if [ -f /opt/oci-hpc/playbooks/inventory ] ; then 
-  sudo mv /opt/oci-hpc/playbooks/inventory /etc/ansible/hosts
-fi 
-
-if [ -f /tmp/configure.conf ] ; then
-        configure=$(cat /tmp/configure.conf)
-else
-        configure=true
+if [ ! -f "$inventory" ]; then
+  echo "Inventory $inventory not found. Copy samples/inventory.example to /etc/ansible/hosts and edit it." 1>&2
+  exit 1
 fi
-
-if [[ $configure != true ]] ; then
-        echo "Do not configure is set. Exiting"
-        exit
-fi
-
 
 username=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
 if [ "$username" == "" ]
@@ -43,26 +29,13 @@ then
 username=$USER
 fi
 
+# Wait for every inventory host to be reachable over SSH before configuring
+grep -oE 'ansible_host=[^ ]+' $inventory | awk -F "=" '{print $2}' | sort -u > /tmp/hosts
 /opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
-
-# Update the forks to a 8 * threads
-
 
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking.
 #
-
-if [[ $execution -eq 1 ]] ; then
-  ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
-else
-
-        cat <<- EOF > /tmp/motd
-        At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run:
-        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
-EOF
-
-sudo mv /tmp/motd /etc/motd
-
-fi
+ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
