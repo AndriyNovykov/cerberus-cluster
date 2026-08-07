@@ -30,7 +30,8 @@ username=$USER
 fi
 
 # Wait for every inventory host to be reachable over SSH before configuring
-grep -oE 'ansible_host=[^ ]+' $inventory | awk -F "=" '{print $2}' | sort -u > /tmp/hosts
+# (skip commented-out host lines)
+grep -vE '^[[:space:]]*#' $inventory | grep -oE 'ansible_host=[^ ]+' | awk -F "=" '{print $2}' | sort -u > /tmp/hosts
 /opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
 
 #
