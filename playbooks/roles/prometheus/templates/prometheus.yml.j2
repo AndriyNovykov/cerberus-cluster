@@ -15,13 +15,7 @@ scrape_configs:
           serial: {{ info.serial_number }}
           hostname: {{ host }}
           cluster_name: {{ info.cluster_name }}
-          ocid: {{ info.ocid }}
-          oci_name: {{ info.oci_name }}
-          AD: {{ info.availabilityDomain }}
-          compartment: {{ info.compartmentId }}
-          rackID: {{ info.rackID }}
-          networkBlockId: {{ info.networkBlockId }}
-          rail_id: {{ info.rail_id }}
-          hpc_island: {{ info.hpc_island }}
-          fss_mount: {{ info.fss_ip }}
+          # oci_name is kept for Grafana dashboard compatibility; on-prem it is
+          # simply the hostname
+          oci_name: {{ host }}
 {% endfor %}

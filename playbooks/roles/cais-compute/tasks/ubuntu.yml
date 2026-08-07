@@ -66,12 +66,12 @@
     package_name:
       - libgtk-4-1
       - libgraphene-1.0-0
-      - libvpx7
+      - "{{ 'libvpx9' if ansible_distribution_release == 'noble' else 'libvpx7' }}"
       - libopus0
       - libgstreamer-plugins-base1.0-0
       - gstreamer1.0-plugins-base
       - flite
-      - libavif13
+      - "{{ 'libavif16' if ansible_distribution_release == 'noble' else 'libavif13' }}"
       - libharfbuzz-icu0
       - libenchant-2-2
       - libsecret-1-0

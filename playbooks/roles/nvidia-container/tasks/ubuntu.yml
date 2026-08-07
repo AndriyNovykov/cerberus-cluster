@@ -5,23 +5,12 @@
     url: "{{ libnvidia_container_repo_gpg_url }}"
     state: present
 
+# NVIDIA's repo is distro-agnostic now: one deb path serves all releases
 - name: add repo
-  get_url:
-    url: "{{ libnvidia_container_repo_base_url }}/{{ ubuntu_repo_dist_name }}/{{ ubuntu_repo_file_name }}"
-    dest: "{{ ubuntu_repo_file_path }}"
-    mode: 0644
-    owner: root
-    group: root
-
-
-- name: install packages
-  vars: 
-    package_name: 
-      - libnvidia-container-tools{{ libnvidia_container_tools_package_version | ternary("="+libnvidia_container_tools_package_version, "") }}
-    package_state: "{{ libnvidia_container_tools_package_state }}"
-    package_cache: true
-  include_role: 
-    name: safe_yum
+  apt_repository:
+    repo: "deb {{ libnvidia_container_repo_base_url }}/stable/deb/amd64 /"
+    filename: nvidia-container-toolkit
+    state: present
 
 - name: Install nvidia-container-toolkit
   vars:
@@ -32,11 +21,11 @@
   include_role:
     name: safe_yum
 
+- name: Configure the container runtime for Docker
+  become: true
+  command: nvidia-ctk runtime configure --runtime=docker
+
 - name: Start Docker
   ansible.builtin.service:
     name: "docker"
     state: restarted
-
-
-
-

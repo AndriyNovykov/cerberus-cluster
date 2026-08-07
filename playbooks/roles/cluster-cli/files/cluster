@@ -203,7 +203,7 @@ def add(user, password, uid, gid, name, nossh):
 
   server = ldap3.Server(host, use_ssl=True)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
-    conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/data/{}'.format(user), 'displayName': name, 'loginShell': '/bin/bash' } )
+    conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': '/bin/bash' } )
   if(conn.result['result'] != 0): 
     print(conn.result)
 
@@ -217,7 +217,7 @@ def add(user, password, uid, gid, name, nossh):
   os.system("sudo su - "+user+" -c "+" 'ls' 2> /dev/null")
 
   if nossh is False:
-    homedir='/data/{}/'.format(user)
+    homedir='/home/{}/'.format(user)
     if os.path.exists(homedir + ".ssh") is False:
       os.system("sudo su - "+user+" -c "+"' ssh-keygen -t rsa -b 2048 -q -f "+homedir+".ssh/id_rsa -P \"\"' 2> /dev/null")
       os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_rsa.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
