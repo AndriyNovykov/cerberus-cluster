@@ -91,6 +91,16 @@
   delegate_to: 127.0.0.1
   when: this_node_profile.gpu | default(false)
 
+# slurmctld serves configless nodes the gres.conf it read at startup; without
+# this reconfigure a node's FIRST registration reports 0 GPUs and gets
+# drained with INVALID_REG
+- name: Reconfigure Slurm so the controller serves the updated gres.conf
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: this_node_profile.gpu | default(false)
+
 - name: Run Pam settings
   include_tasks: compute_pam.yml
   when: pam|bool
