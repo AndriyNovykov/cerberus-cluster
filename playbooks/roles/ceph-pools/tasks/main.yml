@@ -13,16 +13,22 @@
   delay: 10
   changed_when: false
 
+- name: Read the erasure-coding profile
+  ansible.builtin.command: ceph osd erasure-code-profile get {{ ceph_ec_profile }}
+  register: ceph_ec_current
+  changed_when: false
+  failed_when: false
+
 - name: Create the erasure-coding profile
   ansible.builtin.command: >-
     ceph osd erasure-code-profile set {{ ceph_ec_profile }}
     k={{ ceph_ec_k }} m={{ ceph_ec_m }}
     crush-failure-domain={{ ceph_ec_failure_domain }}
-  register: ceph_ec_set
-  changed_when: ceph_ec_set.rc == 0
-  failed_when:
-    - ceph_ec_set.rc != 0
-    - "'already exists' not in ceph_ec_set.stderr"
+  when: >-
+    ceph_ec_current.rc != 0 or
+    ('k=' ~ ceph_ec_k) not in ceph_ec_current.stdout_lines or
+    ('m=' ~ ceph_ec_m) not in ceph_ec_current.stdout_lines or
+    ('crush-failure-domain=' ~ ceph_ec_failure_domain) not in ceph_ec_current.stdout_lines
 
 # --- CephFS -----------------------------------------------------------------
 # The metadata pool MUST be replicated. Erasure coding is unsupported there.

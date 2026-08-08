@@ -18,8 +18,10 @@
   delay: 10
   changed_when: false
 
+# `ceph config get` takes a daemon entity, not 'global' — mon inherits the
+# global-section value we set below
 - name: Read the current public_network setting
-  ansible.builtin.command: ceph config get global public_network
+  ansible.builtin.command: ceph config get mon public_network
   register: ceph_pubnet_current
   changed_when: false
   failed_when: false
