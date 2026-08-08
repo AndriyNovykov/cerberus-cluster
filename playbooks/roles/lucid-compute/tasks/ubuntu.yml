@@ -85,14 +85,8 @@
   ignore_errors: true
 
 # Apptainer installation tasks
-- name: Add Apptainer PPA signing key
-  become: true
-  apt_key:
-    keyserver: keyserver.ubuntu.com
-    id: AFE36534FC6218AE    # “Launchpad PPA for Apptainer”
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/apptainer-archive-keyring.gpg
-
+# (no separate apt_key task: apt-key is gone on Ubuntu 25.04+, and
+# apt_repository fetches the PPA signing key itself)
 - name: Add Apptainer repository
   become: true
   apt_repository:
