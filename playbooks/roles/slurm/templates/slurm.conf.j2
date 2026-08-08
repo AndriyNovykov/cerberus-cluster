@@ -5,7 +5,9 @@ SlurmctldHost={{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[
 {% endif %}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
-ReturnToService=1
+# 2: a DOWN node (e.g. after an unannounced reboot) returns to service on its
+# own when it registers with a valid configuration
+ReturnToService=2
 SlurmctldPidFile=/var/run/slurmctld.pid
 SlurmctldPort=6817
 SlurmdPidFile=/var/run/slurmd.pid
