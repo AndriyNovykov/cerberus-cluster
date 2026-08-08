@@ -1,0 +1,390 @@
+---
+# =============================================================================
+# Ceph deployment for Lucid Computing
+#
+# Design note: cephadm IS the orchestrator. Ansible's job here is host
+# preparation, bootstrap, and cluster expansion — then it hands off. It does
+# not place daemons; cephadm does that better.
+#
+# ceph-ansible is deprecated upstream in favour of cephadm. Do not resurrect it.
+#
+# Safety features, all learned the hard way during the hgxa100 pilot:
+#   * Data devices selected by MODEL STRING, never by /dev/nvmeXn1 path.
+#     NVMe enumeration is not stable across reboots — observed on hgxa100,
+#     where the root disk moved nvme4n1 -> nvme3n1 between boots.
+#   * Hard assertion that the root device cannot appear in the OSD candidate list.
+#   * Expected device count asserted per host before anything is zapped.
+#   * OSD creation gated behind ceph_confirm_destroy, which defaults to false.
+#
+# Usage:
+#   ansible-playbook -i inventory.ini ceph-deploy.yml                  # prep + bootstrap, no OSDs
+#   ansible-playbook -i inventory.ini ceph-deploy.yml -e ceph_confirm_destroy=true
+#   ansible-playbook -i inventory.ini ceph-deploy.yml --tags pools
+#   ansible-playbook -i inventory.ini ceph-deploy.yml --tags teardown -e ceph_confirm_destroy=true
+# =============================================================================
+
+- name: Prepare all Ceph hosts
+  hosts: ceph
+  become: true
+  gather_facts: true
+
+  vars:
+    ceph_release: squid
+
+  tasks:
+    - name: Assert supported distribution
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_major_version | int >= 22
+        fail_msg: >-
+          This playbook targets Ubuntu 22.04+. Adjust the package tasks for other distros.
+
+    # cephadm bootstrap fails outright on unsynchronised clocks.
+    - name: Install base packages
+      ansible.builtin.apt:
+        name:
+          - cephadm
+          - podman
+          - lvm2
+          - chrony
+          - ceph-common
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    # 'cephadm add-repo --release squid' 404s on Ubuntu noble and leaves a
+    # broken source that breaks every subsequent apt update. It is also
+    # unnecessary: noble-updates ships cephadm 19.2.3, which IS Squid.
+    - name: Remove broken upstream Ceph apt source if a previous run added one
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/ceph.list
+        state: absent
+
+    - name: Ensure chrony is running
+      ansible.builtin.systemd:
+        name: chrony
+        state: started
+        enabled: true
+
+    - name: Verify time synchronisation
+      ansible.builtin.command: timedatectl show -p NTPSynchronized --value
+      register: ceph_ntp_sync
+      changed_when: false
+      failed_when: ceph_ntp_sync.stdout | trim != "yes"
+
+    - name: Ensure /etc/ceph exists
+      ansible.builtin.file:
+        path: /etc/ceph
+        state: directory
+        mode: "0755"
+
+
+- name: Bootstrap the cluster on the first monitor
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check whether the cluster is already bootstrapped
+      ansible.builtin.stat:
+        path: /etc/ceph/ceph.conf
+      register: ceph_conf_stat
+
+    - name: Bootstrap cephadm
+      ansible.builtin.command:
+        argv: >-
+          {{
+            ['cephadm', 'bootstrap',
+             '--mon-ip', ceph_mon_ip,
+             '--allow-fqdn-hostname',
+             '--skip-monitoring-stack' if not ceph_deploy_monitoring else '--log-to-file']
+            + (['--single-host-defaults'] if ceph_single_host else [])
+            + (['--cluster-network', ceph_cluster_network] if ceph_cluster_network | default('') else [])
+          }}
+      when: not ceph_conf_stat.stat.exists
+      register: ceph_bootstrap_out
+
+    - name: Show bootstrap output (contains the one-time dashboard password)
+      ansible.builtin.debug:
+        var: ceph_bootstrap_out.stdout_lines
+      when: ceph_bootstrap_out is changed
+
+    - name: Read the cluster fsid
+      ansible.builtin.command: ceph fsid
+      register: ceph_fsid_out
+      changed_when: false
+
+    - name: Register fsid as a fact
+      ansible.builtin.set_fact:
+        ceph_fsid: "{{ ceph_fsid_out.stdout | trim }}"
+
+    - name: Fetch the cluster SSH public key
+      ansible.builtin.slurp:
+        src: /etc/ceph/ceph.pub
+      register: ceph_pubkey_raw
+
+    - name: Register the public key as a fact
+      ansible.builtin.set_fact:
+        ceph_pubkey: "{{ ceph_pubkey_raw.content | b64decode | trim }}"
+
+
+- name: Authorise the cluster key on every host
+  hosts: ceph
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Install the cephadm SSH key for root
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ hostvars[groups['ceph_bootstrap'][0]]['ceph_pubkey'] }}"
+        state: present
+
+
+- name: Expand the cluster and create OSDs
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: List hosts already known to the orchestrator
+      ansible.builtin.command: ceph orch host ls --format json
+      register: ceph_known_hosts
+      changed_when: false
+
+    - name: Add remaining hosts to the cluster
+      ansible.builtin.command: >-
+        ceph orch host add {{ item }} {{ hostvars[item]['ansible_host'] | default(item) }}
+      loop: "{{ groups['ceph'] }}"
+      when: item not in (ceph_known_hosts.stdout | from_json | map(attribute='hostname') | list)
+      register: ceph_host_add
+      changed_when: ceph_host_add.rc == 0
+
+    - name: Wait for the orchestrator to inventory all hosts
+      ansible.builtin.command: ceph orch host ls --format json
+      register: ceph_hosts_final
+      until: (ceph_hosts_final.stdout | from_json | length) == (groups['ceph'] | length)
+      retries: 12
+      delay: 10
+      changed_when: false
+
+    - name: Set public_network explicitly
+      ansible.builtin.command: ceph config set global public_network {{ ceph_public_network }}
+      changed_when: true
+      when: ceph_public_network | default('') | length > 0
+
+
+- name: Create OSDs (guarded — destroys data on matching devices)
+  hosts: ceph
+  become: true
+  gather_facts: false
+  tags: osds
+
+  tasks:
+    - name: Identify the device holding root
+      ansible.builtin.shell: |
+        set -o pipefail
+        findmnt -n -o SOURCE / | sed 's/p\?[0-9]*$//'
+      args:
+        executable: /bin/bash
+      register: ceph_root_dev
+      changed_when: false
+
+    # NEVER select by device path. Enumeration order is not stable across
+    # reboots. Model string is the only reliable discriminator available
+    # without walking /dev/disk/by-id.
+    - name: Discover candidate data devices by model
+      ansible.builtin.shell: |
+        set -o pipefail
+        lsblk -dn -o NAME,MODEL | grep -F '{{ ceph_data_device_model }}' | awk '{print "/dev/"$1}'
+      args:
+        executable: /bin/bash
+      register: ceph_candidates
+      changed_when: false
+      failed_when: false
+
+    - name: ABORT if the root device matched the data-device filter
+      ansible.builtin.assert:
+        that:
+          - ceph_root_dev.stdout | trim not in ceph_candidates.stdout_lines
+        fail_msg: >-
+          ABORT: root device {{ ceph_root_dev.stdout | trim }} matched
+          model filter '{{ ceph_data_device_model }}'. Refusing to continue.
+
+    - name: Assert the expected number of data devices
+      ansible.builtin.assert:
+        that:
+          - ceph_candidates.stdout_lines | length == ceph_osds_per_host
+        fail_msg: >-
+          Expected {{ ceph_osds_per_host }} devices matching
+          '{{ ceph_data_device_model }}', found
+          {{ ceph_candidates.stdout_lines | length }}:
+          {{ ceph_candidates.stdout_lines | join(', ') }}
+
+    - name: Report the devices that would be consumed
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ ceph_candidates.stdout_lines | length }} devices
+          -> {{ ceph_candidates.stdout_lines | join(', ') }}
+          (root is {{ ceph_root_dev.stdout | trim }}, excluded)
+
+    - name: Halt unless destruction is explicitly confirmed
+      ansible.builtin.assert:
+        that:
+          - ceph_confirm_destroy | bool
+        fail_msg: >-
+          Devices listed above will be ZAPPED. Re-run with
+          -e ceph_confirm_destroy=true to proceed.
+
+    - name: Create OSDs
+      ansible.builtin.command: >-
+        ceph orch daemon add osd {{ inventory_hostname }}:{{ item }}
+      loop: "{{ ceph_candidates.stdout_lines }}"
+      delegate_to: "{{ groups['ceph_bootstrap'][0] }}"
+      register: ceph_osd_add
+      changed_when: "'Created osd' in ceph_osd_add.stdout"
+      failed_when:
+        - ceph_osd_add.rc != 0
+        - "'Already prepared' not in ceph_osd_add.stderr"
+
+
+- name: Create pools and filesystems
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tags: pools
+
+  tasks:
+    - name: Wait for all OSDs to be up and in
+      ansible.builtin.shell: |
+        set -o pipefail
+        ceph osd stat --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["num_up_osds"], d["num_in_osds"])'
+      args:
+        executable: /bin/bash
+      register: ceph_osd_state
+      until: >-
+        ceph_osd_state.stdout.split() | map('int') | list ==
+        [ceph_total_osds, ceph_total_osds]
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Create the erasure-coding profile
+      ansible.builtin.command: >-
+        ceph osd erasure-code-profile set {{ ceph_ec_profile }}
+        k={{ ceph_ec_k }} m={{ ceph_ec_m }}
+        crush-failure-domain={{ ceph_ec_failure_domain }}
+      register: ceph_ec_set
+      changed_when: ceph_ec_set.rc == 0
+      failed_when:
+        - ceph_ec_set.rc != 0
+        - "'already exists' not in ceph_ec_set.stderr"
+
+    # --- CephFS -------------------------------------------------------------
+    # The metadata pool MUST be replicated. Erasure coding is unsupported there.
+    - name: Create the CephFS data pool (erasure coded)
+      ansible.builtin.command: >-
+        ceph osd pool create {{ ceph_fs_name }}_data erasure {{ ceph_ec_profile }}
+      register: ceph_fsdata
+      changed_when: "'created' in ceph_fsdata.stdout"
+      failed_when:
+        - ceph_fsdata.rc != 0
+        - "'already exists' not in ceph_fsdata.stderr"
+
+    - name: Enable EC overwrites on the CephFS data pool
+      ansible.builtin.command: >-
+        ceph osd pool set {{ ceph_fs_name }}_data allow_ec_overwrites true
+      changed_when: true
+
+    - name: Create the CephFS metadata pool (replicated — required)
+      ansible.builtin.command: >-
+        ceph osd pool create {{ ceph_fs_name }}_metadata replicated
+      register: ceph_fsmeta
+      changed_when: "'created' in ceph_fsmeta.stdout"
+      failed_when:
+        - ceph_fsmeta.rc != 0
+        - "'already exists' not in ceph_fsmeta.stderr"
+
+    - name: Create the filesystem
+      ansible.builtin.command: >-
+        ceph fs new {{ ceph_fs_name }}
+        {{ ceph_fs_name }}_metadata {{ ceph_fs_name }}_data --force
+      register: ceph_fsnew
+      changed_when: ceph_fsnew.rc == 0
+      failed_when:
+        - ceph_fsnew.rc != 0
+        - "'already exists' not in ceph_fsnew.stderr"
+
+    - name: Deploy MDS daemons
+      ansible.builtin.command: >-
+        ceph orch apply mds {{ ceph_fs_name }} --placement=count:{{ ceph_mds_count }}
+      changed_when: true
+
+    # --- RBD ----------------------------------------------------------------
+    # Replicated, not EC. Partial-stripe writes on EC trigger read-modify-write,
+    # which is poor for VM block workloads.
+    - name: Create the RBD pool (replicated)
+      ansible.builtin.command: ceph osd pool create {{ ceph_rbd_pool }} replicated
+      register: ceph_rbdpool
+      changed_when: "'created' in ceph_rbdpool.stdout"
+      failed_when:
+        - ceph_rbdpool.rc != 0
+        - "'already exists' not in ceph_rbdpool.stderr"
+
+    - name: Tag and initialise the RBD pool
+      ansible.builtin.shell: |
+        ceph osd pool application enable {{ ceph_rbd_pool }} rbd
+        rbd pool init {{ ceph_rbd_pool }}
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    # --- RGW ----------------------------------------------------------------
+    - name: Deploy the RGW service
+      ansible.builtin.command: >-
+        ceph orch apply rgw {{ ceph_rgw_name }}
+        --placement=count:{{ ceph_rgw_count }} --port={{ ceph_rgw_port }}
+      changed_when: true
+      when: ceph_deploy_rgw | bool
+
+    - name: Set the mclock profile
+      ansible.builtin.command: >-
+        ceph config set osd osd_mclock_profile {{ ceph_mclock_profile }}
+      changed_when: true
+
+    - name: Final cluster status
+      ansible.builtin.command: ceph -s
+      register: ceph_final
+      changed_when: false
+
+    - name: Show cluster status
+      ansible.builtin.debug:
+        var: ceph_final.stdout_lines
+
+
+# =============================================================================
+# Teardown — never runs unless explicitly requested by tag AND confirmation
+# =============================================================================
+- name: Destroy the cluster
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tags: [teardown, never]
+
+  tasks:
+    - name: Require explicit confirmation
+      ansible.builtin.assert:
+        that:
+          - ceph_confirm_destroy | bool
+        fail_msg: "Re-run with -e ceph_confirm_destroy=true to destroy the cluster."
+
+    - name: Read fsid
+      ansible.builtin.command: ceph fsid
+      register: ceph_teardown_fsid
+      changed_when: false
+
+    - name: Remove the cluster and zap all OSD devices
+      ansible.builtin.command: >-
+        cephadm rm-cluster --force --zap-osds --fsid {{ ceph_teardown_fsid.stdout | trim }}
+      changed_when: true

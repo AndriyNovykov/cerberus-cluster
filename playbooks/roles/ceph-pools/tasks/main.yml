@@ -62,8 +62,10 @@
 
 - name: Set metadata pool replication size
   ansible.builtin.command: >-
-    ceph osd pool set {{ ceph_fs_name }}_metadata size {{ ceph_meta_pool_size }}
-  when: ceph_meta_size_current.stdout | trim != 'size: ' ~ ceph_meta_pool_size
+    ceph osd pool set {{ ceph_fs_name }}_metadata size {{ ceph_meta_pool_size }} --yes-i-really-mean-it
+  when: >-
+    (ceph_meta_size_current.stdout | regex_replace('^size:', '') | trim)
+    != (ceph_meta_pool_size | string)
 
 - name: Read metadata pool min_size
   ansible.builtin.command: ceph osd pool get {{ ceph_fs_name }}_metadata min_size
@@ -73,7 +75,9 @@
 - name: Set metadata pool min_size
   ansible.builtin.command: >-
     ceph osd pool set {{ ceph_fs_name }}_metadata min_size {{ ceph_meta_pool_min_size }}
-  when: ceph_meta_minsize_current.stdout | trim != 'min_size: ' ~ ceph_meta_pool_min_size
+  when: >-
+    (ceph_meta_minsize_current.stdout | regex_replace('^min_size:', '') | trim)
+    != (ceph_meta_pool_min_size | string)
 
 - name: List existing filesystems
   ansible.builtin.command: ceph fs ls --format json
