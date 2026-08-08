@@ -18,10 +18,19 @@
   delay: 10
   changed_when: false
 
-# `ceph config get` takes a daemon entity, not 'global' — mon inherits the
-# global-section value we set below
+# Read the GLOBAL-scope value specifically: `ceph config get <entity>` returns
+# scope overrides (bootstrap writes a mon-scope public_network) which would
+# never match and make the set task fire on every run
 - name: Read the current public_network setting
-  ansible.builtin.command: ceph config get mon public_network
+  ansible.builtin.shell: |
+    set -o pipefail
+    ceph config dump --format json | python3 -c '
+    import json,sys
+    for o in json.load(sys.stdin):
+        if o.get("section")=="global" and o.get("name")=="public_network":
+            print(o.get("value")); break'
+  args:
+    executable: /bin/bash
   register: ceph_pubnet_current
   changed_when: false
   failed_when: false
