@@ -96,13 +96,18 @@
   changed_when: false
   failed_when: false
 
+# `ceph orch ls` prints "No services reported" (not JSON) when none exist
+- name: Parse existing MDS services
+  ansible.builtin.set_fact:
+    ceph_mds_services: >-
+      {{ (ceph_mds_current.stdout | from_json | map(attribute='service_name') | list)
+         if (ceph_mds_current.rc == 0 and (ceph_mds_current.stdout | trim) is match('^\['))
+         else [] }}
+
 - name: Deploy MDS daemons
   ansible.builtin.command: >-
     ceph orch apply mds {{ ceph_fs_name }} --placement=count:{{ ceph_mds_count }}
-  when: >-
-    ceph_mds_current.rc != 0 or
-    ('mds.' ~ ceph_fs_name) not in
-    (ceph_mds_current.stdout | from_json | map(attribute='service_name') | list)
+  when: ('mds.' ~ ceph_fs_name) not in ceph_mds_services
 
 # --- RGW (deferred by default; enable with ceph_deploy_rgw=true) -------------
 - name: Read current RGW service spec
@@ -112,16 +117,21 @@
   failed_when: false
   when: ceph_deploy_rgw | bool
 
+- name: Parse existing RGW services
+  ansible.builtin.set_fact:
+    ceph_rgw_services: >-
+      {{ (ceph_rgw_current.stdout | from_json | map(attribute='service_name') | list)
+         if (ceph_rgw_current.rc | default(1) == 0 and (ceph_rgw_current.stdout | default('') | trim) is match('^\['))
+         else [] }}
+  when: ceph_deploy_rgw | bool
+
 - name: Deploy the RGW service
   ansible.builtin.command: >-
     ceph orch apply rgw {{ ceph_rgw_name }}
     --placement=count:{{ ceph_rgw_count }} --port={{ ceph_rgw_port }}
   when:
     - ceph_deploy_rgw | bool
-    - >-
-      ceph_rgw_current.rc != 0 or
-      ('rgw.' ~ ceph_rgw_name) not in
-      (ceph_rgw_current.stdout | from_json | map(attribute='service_name') | list)
+    - ('rgw.' ~ ceph_rgw_name) not in ceph_rgw_services
 
 # --- Tuning -------------------------------------------------------------------
 - name: Read the current mclock profile
