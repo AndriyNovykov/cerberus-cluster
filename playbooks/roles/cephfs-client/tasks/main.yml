@@ -27,6 +27,23 @@
     mode: "0600"
   no_log: true
 
+# Migration path: if the mountpoint currently carries a non-ceph filesystem
+# (the interim NFS export), unmount it and drop its fstab entry first
+- name: Check what is mounted at the target path
+  ansible.builtin.command: findmnt -n -o FSTYPE {{ cephfs_mount_path }}
+  register: cephfs_current_fstype
+  changed_when: false
+  failed_when: false
+
+- name: Unmount the previous non-ceph filesystem
+  become: true
+  ansible.posix.mount:
+    path: "{{ cephfs_mount_path }}"
+    state: absent
+  when:
+    - cephfs_current_fstype.rc == 0
+    - cephfs_current_fstype.stdout | trim != 'ceph'
+
 - name: Create the mountpoint
   become: true
   ansible.builtin.file:
