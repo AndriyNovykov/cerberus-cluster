@@ -45,7 +45,7 @@
       - libosmesa6-dev
       - libglfw3
       - libglfw3-dev
-      - libgl1-mesa-glx
+      - libgl1
       - libgl1-mesa-dev
     package_state: latest
   include_role:
