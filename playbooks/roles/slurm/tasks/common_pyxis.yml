@@ -69,5 +69,5 @@
     content: |
       required /usr/local/lib/slurm/spank_pyxis.so
     mode: '0775'
-    owner: "{{controller_username}}"
+    owner: root
     group: "{{privilege_group_name}}"
