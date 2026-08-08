@@ -41,3 +41,16 @@
   when:
     - ceph_public_network | default('') | length > 0
     - ceph_pubnet_current.stdout | default('') | trim != ceph_public_network
+
+# Ceph daemons bind anywhere in 6800-7300 by default — a range that contains
+# slurmctld/slurmd's 6817/6818. On co-located nodes an OSD can steal slurmd's
+# port at boot; start the Ceph range at 7000 to keep them disjoint.
+- name: Read ms_bind_port_min
+  ansible.builtin.command: ceph config get osd ms_bind_port_min
+  register: ceph_bind_min_current
+  changed_when: false
+  failed_when: false
+
+- name: Keep Ceph daemon ports clear of Slurm (6817/6818)
+  ansible.builtin.command: ceph config set global ms_bind_port_min {{ ceph_ms_bind_port_min | default(7000) }}
+  when: ceph_bind_min_current.stdout | default('') | trim != (ceph_ms_bind_port_min | default(7000) | string)
