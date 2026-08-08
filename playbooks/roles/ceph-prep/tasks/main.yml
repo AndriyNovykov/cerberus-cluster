@@ -13,6 +13,11 @@
     name:
       - cephadm
       - podman
+      # crun explicitly: without it podman falls back to whatever runc the
+      # docker/containerd.io packages installed, and runc 1.4.x turns
+      # cephadm's --pids-limit=-1 into pids.max=0 — every daemon container
+      # dies on first fork ("catatonit: failed to spawn pid1").
+      - crun
       - lvm2
       - chrony
       - ceph-common
