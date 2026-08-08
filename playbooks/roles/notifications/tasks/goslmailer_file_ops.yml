@@ -121,5 +121,5 @@
     - { path: '/etc/slurm/goslmailer.conf', regex: "\\$SLACK_BOT_TOKEN", new: "{{ slack_bot_token }}"}
     - { path: '/etc/slurm/gobler.conf', regex: "\\$SLACK_BOT_TOKEN", new: "{{ slack_bot_token }}"}
     - { path: '/etc/Muttrc.local', regex: "\\$EMAIL_ADDRESS", new: "do-not-reply@safe.ai"}
-    - { path: '/etc/Muttrc.local', regex: "\\$PLAIN_TEXT_NAME", new: "CAIS Notifications"}
+    - { path: '/etc/Muttrc.local', regex: "\\$PLAIN_TEXT_NAME", new: "Lucid Notifications"}
     - { path: '/etc/Muttrc.local', regex: "\\$APP_PASSWORD", new: "{{ app_password }}"}

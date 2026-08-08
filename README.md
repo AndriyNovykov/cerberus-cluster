@@ -73,5 +73,5 @@ and SSH key).
 ## Origin
 
 Forked from the [oracle-quickstart/oci-hpc](https://github.com/oracle-quickstart/oci-hpc)
-stack (UPL-licensed) and maintained for CAIS; this branch removes the OCI
+stack (UPL-licensed) and maintained for Lucid; this branch removes the OCI
 layer for on-prem deployments.

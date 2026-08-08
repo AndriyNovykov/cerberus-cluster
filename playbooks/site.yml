@@ -72,7 +72,7 @@
           ⠀⠀⠀⠳⣦⡘⠷⡀⠈⠉⢉⣉⢉⣴⠟⠀⠀
           ⠀⠀⠀⠀⠈⠛⠷⢶⣤⡶⠟⠡⠚⠁⠀⠀⠀
 
-          Welcome to the CAIS Compute Cluster!
+          Welcome to the Lucid Compute Cluster!
 
           We've set the default allocated storage per user to be 500 GB.
 
@@ -291,14 +291,14 @@
 - hosts: all
   tasks:
     - include_role:
-        name: cais-all
+        name: lucid-all
 
 - hosts: controller,login
   tasks:
     - include_role:
-        name: cais-controller-login
+        name: lucid-controller-login
 
 - hosts: compute
   tasks: 
     - include_role:
-        name: cais-compute
+        name: lucid-compute

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repository is
 
 An **on-prem bare-metal Slurm cluster stack** (branch `on-prem-rework`) — originally a fork of
-the OCI `oci-hpc` quickstart maintained for CAIS; the OCI/Terraform version lives on `main`.
+the OCI `oci-hpc` quickstart maintained for Lucid; the OCI/Terraform version lives on `main`.
 There is no application to build/lint/test locally; the "product" is the Ansible playbooks and
 operational scripts that configure hand-installed Ubuntu 24.04 nodes.
 
@@ -13,7 +13,7 @@ One layer does all the work:
 
 - **Ansible** (`playbooks/`) — `playbooks/site.yml` is the primary entrypoint, composing ~40
   roles in `playbooks/roles/` (slurm, openldap/sssd, nvidia-driver/nvidia-fabricmanager,
-  nfs-server/nfs-client, grafana/prometheus/metrics-exporter, docker/nvidia-enroot, cais-*).
+  nfs-server/nfs-client, grafana/prometheus/metrics-exporter, docker/nvidia-enroot, lucid-*).
   It runs against a **hand-written static inventory** at `/etc/ansible/hosts`
   (template: `samples/inventory.example`) — there is no Terraform and no cloud metadata.
 
