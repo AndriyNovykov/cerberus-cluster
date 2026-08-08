@@ -1,0 +1,5 @@
+---
+# OSD creation destroys data on the selected devices. This must be passed
+# explicitly (-e ceph_confirm_destroy=true); a default run stops after
+# printing the devices it would consume.
+ceph_confirm_destroy: false

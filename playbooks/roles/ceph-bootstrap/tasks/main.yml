@@ -1,0 +1,47 @@
+---
+- name: Check whether the cluster is already bootstrapped
+  ansible.builtin.stat:
+    path: /etc/ceph/ceph.conf
+  register: ceph_conf_stat
+
+# Output contains the one-time dashboard password: never log it. Retrieve a
+# lost password with `ceph dashboard ac-user-set-password admin -i <file>`.
+- name: Bootstrap cephadm
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['cephadm', '--image', ceph_container_image, 'bootstrap',
+         '--mon-ip', ceph_mon_ip,
+         '--allow-fqdn-hostname',
+         '--skip-monitoring-stack' if not ceph_deploy_monitoring else '--log-to-file']
+        + (['--single-host-defaults'] if ceph_single_host else [])
+        + (['--cluster-network', ceph_cluster_network] if ceph_cluster_network | default('') else [])
+      }}
+  when: not ceph_conf_stat.stat.exists
+  register: ceph_bootstrap_out
+  no_log: true
+
+- name: Note whether bootstrap ran
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Cluster bootstrapped. The one-time dashboard password was NOT logged;
+      reset it with: ceph dashboard ac-user-set-password admin -i <passwordfile>'
+      if ceph_bootstrap_out is changed else 'Cluster already bootstrapped; skipped.' }}
+
+- name: Read the cluster fsid
+  ansible.builtin.command: ceph fsid
+  register: ceph_fsid_out
+  changed_when: false
+
+- name: Register fsid as a fact
+  ansible.builtin.set_fact:
+    ceph_fsid: "{{ ceph_fsid_out.stdout | trim }}"
+
+- name: Fetch the cluster SSH public key
+  ansible.builtin.slurp:
+    src: /etc/ceph/ceph.pub
+  register: ceph_pubkey_raw
+
+- name: Register the public key as a fact
+  ansible.builtin.set_fact:
+    ceph_pubkey: "{{ ceph_pubkey_raw.content | b64decode | trim }}"

@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# Ceph phase — separate entrypoint, never referenced by site.yml.
+#
+# Design: cephadm IS the orchestrator. Ansible's job is host preparation,
+# a guarded one-shot bootstrap, and cluster expansion — then it hands off.
+# Upgrades go through `ceph orch upgrade start --image <new>`, never Ansible.
+#
+# Usage (inventory: /etc/ansible/hosts, groups [ceph] and [ceph_bootstrap]):
+#   ansible-playbook playbooks/ceph.yml                            # prep+bootstrap; OSD dry-run report
+#   ansible-playbook playbooks/ceph.yml -e ceph_confirm_destroy=true   # consume the data devices
+#   ansible-playbook playbooks/ceph.yml --tags pools               # pools/CephFS/MDS (+client key)
+#   ansible-playbook playbooks/ceph.yml --tags teardown -e ceph_confirm_destroy=true
+# =============================================================================
+
+- name: Prepare all Ceph hosts
+  hosts: ceph
+  become: true
+  gather_facts: true
+  tasks:
+    - include_role:
+        name: ceph-prep
+
+- name: Bootstrap the cluster on the first monitor
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ceph-bootstrap
+
+- name: Authorise the cluster key on every host
+  hosts: ceph
+  become: true
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ceph-bootstrap
+        tasks_from: authorize.yml
+
+- name: Expand the cluster
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tasks:
+    - include_role:
+        name: ceph-bootstrap
+        tasks_from: expand.yml
+
+- name: Create OSDs (guarded — destroys data on matching devices)
+  hosts: ceph
+  become: true
+  gather_facts: false
+  tags: osds
+  tasks:
+    - include_role:
+        name: ceph-osd
+
+- name: Create pools and filesystems
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tags: pools
+  tasks:
+    - include_role:
+        name: ceph-pools
+
+# =============================================================================
+# Teardown — never runs unless explicitly requested by tag AND confirmation
+# =============================================================================
+- name: Destroy the cluster
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tags: [teardown, never]
+  tasks:
+    - name: Require explicit confirmation
+      ansible.builtin.assert:
+        that:
+          - ceph_confirm_destroy | default(false) | bool
+        fail_msg: "Re-run with -e ceph_confirm_destroy=true to destroy the cluster."
+
+    - name: Read fsid
+      ansible.builtin.command: ceph fsid
+      register: ceph_teardown_fsid
+      changed_when: false
+
+    - name: Remove the cluster and zap all OSD devices
+      ansible.builtin.command: >-
+        cephadm rm-cluster --force --zap-osds --fsid {{ ceph_teardown_fsid.stdout | trim }}

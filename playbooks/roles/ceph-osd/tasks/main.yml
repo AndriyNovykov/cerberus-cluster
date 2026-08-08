@@ -1,0 +1,75 @@
+---
+# Safety block learned the hard way during the hgxa100 pilot:
+#   * Data devices selected by MODEL STRING, never by /dev/nvmeXn1 path.
+#     NVMe enumeration is not stable across reboots — observed on hgxa100,
+#     where the root disk moved nvme4n1 -> nvme3n1 between boots.
+#   * Hard assertion that the root device cannot appear in the candidate list.
+#   * Expected device count asserted per host before anything is zapped.
+#   * OSD creation gated behind ceph_confirm_destroy, which defaults to false.
+
+- name: Identify the device holding root
+  ansible.builtin.shell: |
+    set -o pipefail
+    findmnt -n -o SOURCE / | sed 's/p\?[0-9]*$//'
+  args:
+    executable: /bin/bash
+  register: ceph_root_dev
+  changed_when: false
+
+# NEVER select by device path. Model string is the only reliable
+# discriminator available without walking /dev/disk/by-id. grep -F gives
+# substring semantics on purpose: lsblk reports the full model
+# (e.g. MZQL23T8HCLS-00A07) while the filter is the family prefix.
+- name: Discover candidate data devices by model
+  ansible.builtin.shell: |
+    set -o pipefail
+    lsblk -dn -o NAME,MODEL | grep -F '{{ ceph_data_device_model }}' | awk '{print "/dev/"$1}'
+  args:
+    executable: /bin/bash
+  register: ceph_candidates
+  changed_when: false
+  failed_when: false
+
+- name: ABORT if the root device matched the data-device filter
+  ansible.builtin.assert:
+    that:
+      - ceph_root_dev.stdout | trim not in ceph_candidates.stdout_lines
+    fail_msg: >-
+      ABORT: root device {{ ceph_root_dev.stdout | trim }} matched
+      model filter '{{ ceph_data_device_model }}'. Refusing to continue.
+
+- name: Assert the expected number of data devices
+  ansible.builtin.assert:
+    that:
+      - ceph_candidates.stdout_lines | length == ceph_osds_per_host | int
+    fail_msg: >-
+      Expected {{ ceph_osds_per_host }} devices matching
+      '{{ ceph_data_device_model }}', found
+      {{ ceph_candidates.stdout_lines | length }}:
+      {{ ceph_candidates.stdout_lines | join(', ') }}
+
+- name: Report the devices that would be consumed
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}: {{ ceph_candidates.stdout_lines | length }} devices
+      -> {{ ceph_candidates.stdout_lines | join(', ') }}
+      (root is {{ ceph_root_dev.stdout | trim }}, excluded)
+
+- name: Halt unless destruction is explicitly confirmed
+  ansible.builtin.assert:
+    that:
+      - ceph_confirm_destroy | bool
+    fail_msg: >-
+      Devices listed above will be ZAPPED. Re-run with
+      -e ceph_confirm_destroy=true to proceed.
+
+- name: Create OSDs
+  ansible.builtin.command: >-
+    ceph orch daemon add osd {{ inventory_hostname }}:{{ item }}
+  loop: "{{ ceph_candidates.stdout_lines }}"
+  delegate_to: "{{ groups['ceph_bootstrap'][0] }}"
+  register: ceph_osd_add
+  changed_when: "'Created osd' in ceph_osd_add.stdout"
+  failed_when:
+    - ceph_osd_add.rc != 0
+    - "'Already prepared' not in ceph_osd_add.stderr"

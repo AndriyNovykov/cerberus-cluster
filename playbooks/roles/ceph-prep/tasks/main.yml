@@ -1,0 +1,47 @@
+---
+- name: Assert supported distribution
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_major_version | int >= 22
+    fail_msg: >-
+      The ceph phase targets Ubuntu 22.04+. Adjust the package tasks for other distros.
+
+# cephadm bootstrap fails outright on unsynchronised clocks.
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - cephadm
+      - podman
+      - lvm2
+      - chrony
+      - ceph-common
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# 'cephadm add-repo --release squid' 404s on Ubuntu noble and leaves a
+# broken source that breaks every subsequent apt update. It is also
+# unnecessary: noble-updates ships cephadm 19.2.x, which IS Squid.
+- name: Remove broken upstream Ceph apt source if a previous run added one
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/ceph.list
+    state: absent
+
+- name: Ensure chrony is running
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Verify time synchronisation
+  ansible.builtin.command: timedatectl show -p NTPSynchronized --value
+  register: ceph_ntp_sync
+  changed_when: false
+  failed_when: ceph_ntp_sync.stdout | trim != "yes"
+
+- name: Ensure /etc/ceph exists
+  ansible.builtin.file:
+    path: /etc/ceph
+    state: directory
+    mode: "0755"

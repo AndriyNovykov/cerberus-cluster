@@ -1,0 +1,173 @@
+---
+- name: Wait for all OSDs to be up and in
+  ansible.builtin.shell: |
+    set -o pipefail
+    ceph osd stat --format json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["num_up_osds"], d["num_in_osds"])'
+  args:
+    executable: /bin/bash
+  register: ceph_osd_state
+  until: >-
+    ceph_osd_state.stdout.split() | map('int') | list ==
+    [ceph_total_osds | int, ceph_total_osds | int]
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Create the erasure-coding profile
+  ansible.builtin.command: >-
+    ceph osd erasure-code-profile set {{ ceph_ec_profile }}
+    k={{ ceph_ec_k }} m={{ ceph_ec_m }}
+    crush-failure-domain={{ ceph_ec_failure_domain }}
+  register: ceph_ec_set
+  changed_when: ceph_ec_set.rc == 0
+  failed_when:
+    - ceph_ec_set.rc != 0
+    - "'already exists' not in ceph_ec_set.stderr"
+
+# --- CephFS -----------------------------------------------------------------
+# The metadata pool MUST be replicated. Erasure coding is unsupported there.
+- name: Create the CephFS data pool (erasure coded)
+  ansible.builtin.command: >-
+    ceph osd pool create {{ ceph_fs_name }}_data erasure {{ ceph_ec_profile }}
+  register: ceph_fsdata
+  changed_when: "'created' in ceph_fsdata.stdout"
+  failed_when:
+    - ceph_fsdata.rc != 0
+    - "'already exists' not in ceph_fsdata.stderr"
+
+- name: Read allow_ec_overwrites on the CephFS data pool
+  ansible.builtin.command: >-
+    ceph osd pool get {{ ceph_fs_name }}_data allow_ec_overwrites
+  register: ceph_ecow_current
+  changed_when: false
+
+- name: Enable EC overwrites on the CephFS data pool
+  ansible.builtin.command: >-
+    ceph osd pool set {{ ceph_fs_name }}_data allow_ec_overwrites true
+  when: "'true' not in ceph_ecow_current.stdout"
+
+- name: Create the CephFS metadata pool (replicated — required)
+  ansible.builtin.command: >-
+    ceph osd pool create {{ ceph_fs_name }}_metadata replicated
+  register: ceph_fsmeta
+  changed_when: "'created' in ceph_fsmeta.stdout"
+  failed_when:
+    - ceph_fsmeta.rc != 0
+    - "'already exists' not in ceph_fsmeta.stderr"
+
+- name: Read metadata pool replication size
+  ansible.builtin.command: ceph osd pool get {{ ceph_fs_name }}_metadata size
+  register: ceph_meta_size_current
+  changed_when: false
+
+- name: Set metadata pool replication size
+  ansible.builtin.command: >-
+    ceph osd pool set {{ ceph_fs_name }}_metadata size {{ ceph_meta_pool_size }}
+  when: ceph_meta_size_current.stdout | trim != 'size: ' ~ ceph_meta_pool_size
+
+- name: Read metadata pool min_size
+  ansible.builtin.command: ceph osd pool get {{ ceph_fs_name }}_metadata min_size
+  register: ceph_meta_minsize_current
+  changed_when: false
+
+- name: Set metadata pool min_size
+  ansible.builtin.command: >-
+    ceph osd pool set {{ ceph_fs_name }}_metadata min_size {{ ceph_meta_pool_min_size }}
+  when: ceph_meta_minsize_current.stdout | trim != 'min_size: ' ~ ceph_meta_pool_min_size
+
+- name: List existing filesystems
+  ansible.builtin.command: ceph fs ls --format json
+  register: ceph_fs_list
+  changed_when: false
+
+- name: Create the filesystem
+  ansible.builtin.command: >-
+    ceph fs new {{ ceph_fs_name }}
+    {{ ceph_fs_name }}_metadata {{ ceph_fs_name }}_data --force
+  when: ceph_fs_name not in (ceph_fs_list.stdout | from_json | map(attribute='name') | list)
+
+- name: Read current MDS service spec
+  ansible.builtin.command: ceph orch ls mds --format json
+  register: ceph_mds_current
+  changed_when: false
+  failed_when: false
+
+- name: Deploy MDS daemons
+  ansible.builtin.command: >-
+    ceph orch apply mds {{ ceph_fs_name }} --placement=count:{{ ceph_mds_count }}
+  when: >-
+    ceph_mds_current.rc != 0 or
+    ('mds.' ~ ceph_fs_name) not in
+    (ceph_mds_current.stdout | from_json | map(attribute='service_name') | list)
+
+# --- RGW (deferred by default; enable with ceph_deploy_rgw=true) -------------
+- name: Read current RGW service spec
+  ansible.builtin.command: ceph orch ls rgw --format json
+  register: ceph_rgw_current
+  changed_when: false
+  failed_when: false
+  when: ceph_deploy_rgw | bool
+
+- name: Deploy the RGW service
+  ansible.builtin.command: >-
+    ceph orch apply rgw {{ ceph_rgw_name }}
+    --placement=count:{{ ceph_rgw_count }} --port={{ ceph_rgw_port }}
+  when:
+    - ceph_deploy_rgw | bool
+    - >-
+      ceph_rgw_current.rc != 0 or
+      ('rgw.' ~ ceph_rgw_name) not in
+      (ceph_rgw_current.stdout | from_json | map(attribute='service_name') | list)
+
+# --- Tuning -------------------------------------------------------------------
+- name: Read the current mclock profile
+  ansible.builtin.command: ceph config get osd osd_mclock_profile
+  register: ceph_mclock_current
+  changed_when: false
+
+- name: Set the mclock profile
+  ansible.builtin.command: >-
+    ceph config set osd osd_mclock_profile {{ ceph_mclock_profile }}
+  when: ceph_mclock_current.stdout | trim != ceph_mclock_profile
+
+# --- Client credential for the compute/login nodes ---------------------------
+# `ceph fs authorize` is idempotent when the caps match; it errors if an
+# existing client has different caps (which we treat as a real failure).
+- name: Authorize the CephFS client
+  ansible.builtin.command: >-
+    ceph fs authorize {{ ceph_fs_name }} client.{{ ceph_client_name }} / rw
+  register: ceph_client_auth
+  changed_when: false
+  no_log: true
+
+- name: Read the client secret
+  ansible.builtin.command: ceph auth get-key client.{{ ceph_client_name }}
+  register: ceph_client_key
+  changed_when: false
+  no_log: true
+
+- name: Ensure the secret directory exists on the ansible controller
+  ansible.builtin.file:
+    path: "{{ ceph_client_secret_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Store the client secret on the ansible controller
+  ansible.builtin.copy:
+    content: "{{ ceph_client_key.stdout }}"
+    dest: "{{ ceph_client_secret_dir }}/{{ ceph_client_name }}.secret"
+    mode: "0600"
+  delegate_to: 127.0.0.1
+  run_once: true
+  no_log: true
+
+- name: Final cluster status
+  ansible.builtin.command: ceph -s
+  register: ceph_final
+  changed_when: false
+
+- name: Show cluster status
+  ansible.builtin.debug:
+    var: ceph_final.stdout_lines

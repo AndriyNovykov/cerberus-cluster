@@ -1,0 +1,7 @@
+---
+# cephadm manages daemons on member hosts over SSH as root.
+- name: Install the cephadm SSH key for root
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ hostvars[groups['ceph_bootstrap'][0]]['ceph_pubkey'] }}"
+    state: present

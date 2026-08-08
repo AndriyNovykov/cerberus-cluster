@@ -1,0 +1,32 @@
+---
+- name: List hosts already known to the orchestrator
+  ansible.builtin.command: ceph orch host ls --format json
+  register: ceph_known_hosts
+  changed_when: false
+
+- name: Add remaining hosts to the cluster
+  ansible.builtin.command: >-
+    ceph orch host add {{ item }} {{ hostvars[item]['ansible_host'] | default(item) }}
+  loop: "{{ groups['ceph'] }}"
+  when: item not in (ceph_known_hosts.stdout | from_json | map(attribute='hostname') | list)
+
+- name: Wait for the orchestrator to inventory all hosts
+  ansible.builtin.command: ceph orch host ls --format json
+  register: ceph_hosts_final
+  until: (ceph_hosts_final.stdout | from_json | length) == (groups['ceph'] | length)
+  retries: 12
+  delay: 10
+  changed_when: false
+
+- name: Read the current public_network setting
+  ansible.builtin.command: ceph config get global public_network
+  register: ceph_pubnet_current
+  changed_when: false
+  failed_when: false
+  when: ceph_public_network | default('') | length > 0
+
+- name: Set public_network explicitly
+  ansible.builtin.command: ceph config set global public_network {{ ceph_public_network }}
+  when:
+    - ceph_public_network | default('') | length > 0
+    - ceph_pubnet_current.stdout | default('') | trim != ceph_public_network

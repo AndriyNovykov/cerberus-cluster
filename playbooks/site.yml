@@ -101,6 +101,8 @@
 # Shared LDAP-user homes live in /clusterhome, NOT /home: mounting the export
 # over /home would shadow each node's local admin users (whose uids differ
 # across hand-installed machines) and lock out SSH.
+# home_backend selects nfs (controller export) or cephfs (playbooks/ceph.yml
+# cluster must already be deployed).
 - hosts: controller
   become: true
   vars:
@@ -110,7 +112,7 @@
   tasks:
     - include_role:
         name: nfs-server
-      when: home_nfs|bool
+      when: home_nfs|bool and home_backend|default('nfs') == 'nfs'
 
 - hosts: controller, slurm_backup, login, monitoring
   become: true
@@ -146,7 +148,16 @@
         export_path: "/clusterhome"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
-      when: home_nfs|bool
+      when: home_nfs|bool and home_backend|default('nfs') == 'nfs'
+
+# CephFS-backed /clusterhome: every node (controller included) mounts the
+# filesystem directly from the Ceph cluster.
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: cephfs-client
+      when: home_backend|default('nfs') == 'cephfs'
 
 - hosts: controller
   become: true

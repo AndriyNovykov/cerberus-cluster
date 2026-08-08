@@ -1,0 +1,46 @@
+---
+# Kernel CephFS client. The mount source is the mon address; the client
+# secret is distributed from the controller's passwords store (written there
+# by the ceph-pools role).
+- name: Install ceph-common
+  vars:
+    package_name:
+      - ceph-common
+    package_state: present
+  include_role:
+    name: safe_yum
+
+- name: Ensure /etc/ceph exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/ceph
+    state: directory
+    mode: "0755"
+
+- name: Install the CephFS client secret
+  become: true
+  ansible.builtin.copy:
+    src: "{{ ceph_client_secret_dir }}/{{ ceph_client_name }}.secret"
+    dest: "/etc/ceph/{{ ceph_client_name }}.secret"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Create the mountpoint
+  become: true
+  ansible.builtin.file:
+    path: "{{ cephfs_mount_path }}"
+    state: directory
+    owner: root
+    group: "{{ privilege_group_name }}"
+    mode: "0775"
+
+- name: Mount CephFS
+  become: true
+  ansible.posix.mount:
+    path: "{{ cephfs_mount_path }}"
+    src: "{{ ceph_mon_ip }}:/"
+    fstype: ceph
+    opts: "{{ cephfs_mount_opts }}"
+    state: mounted

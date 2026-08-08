@@ -1,0 +1,8 @@
+---
+# Pin the container image for reproducibility; bump deliberately, then upgrade
+# running clusters with `ceph orch upgrade start --image <new>` (never via
+# Ansible re-runs).
+ceph_container_image: "quay.io/ceph/ceph:v19.2.3"
+ceph_deploy_monitoring: false
+ceph_single_host: false
+ceph_cluster_network: ""

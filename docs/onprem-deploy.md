@@ -112,11 +112,10 @@ sudo reboot                        # on hgx01: node must return to service
   host line in `/etc/ansible/hosts`, then `bin/configure.sh`.
 - **Slurm config change**: edit templates/profiles, run
   `bin/slurm_config.sh` (`--initial` to reset state).
-- **CephFS migration**: when the Ceph cluster exists, set in
-  `/etc/ansible/hosts`: `add_nfs=true`, `nfs_source_IP=<ganesha/mon IP>`,
-  `nfs_source_path=<export>`, `nfs_target_path=/nfs/scratch`, re-run
-  `bin/configure.sh`. Moving `/clusterhome` onto CephFS replaces the controller's
-  nfs-server export; plan a maintenance window and rsync.
+- **Ceph / CephFS homes**: storage is its own phase — see [ceph.md](ceph.md).
+  Deploy with `playbooks/ceph.yml`, then flip `home_backend=cephfs` in
+  `/etc/ansible/hosts` and re-run `bin/configure.sh` (rsync existing
+  `/clusterhome` content across first).
 - **User onboarding**: `bin/onboard.sh` (set the variables at the top first).
   Ceph quota TODO is marked inside the script.
 

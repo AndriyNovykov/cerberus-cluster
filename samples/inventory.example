@@ -28,6 +28,41 @@ lucid ansible_host=10.0.0.22 ansible_user=exx role=compute node_profile=h100nvl-
 compute_to_add
 compute_configured
 
+# --- ceph (separate phase: playbooks/ceph.yml; never touched by site.yml) ---
+# Interim single-node deployment on the HGX A100; swaps to the dedicated
+# storage nodes later by repointing these groups (failure domain osd -> host,
+# ceph_single_host -> false).
+[ceph]
+hgxa100 ansible_host=10.0.0.21 ansible_user=ubuntu
+
+[ceph_bootstrap]
+hgxa100
+
+[ceph:vars]
+ceph_mon_ip=10.0.0.21
+ceph_public_network=10.0.0.0/24
+ceph_cluster_network=
+ceph_single_host=true
+# Model string of the DATA drives only. Selecting by /dev path is unsafe —
+# NVMe enumeration shifted between reboots on this exact host. The OS drives
+# (model MZ1L21T9HCLS) must never match this.
+ceph_data_device_model=MZQL23T8HCLS
+ceph_osds_per_host=8
+ceph_total_osds=8
+# Single host: failure domain must be osd, or PGs never go active.
+ceph_ec_failure_domain=osd
+ceph_ec_k=4
+ceph_ec_m=2
+ceph_ec_profile=ec42
+ceph_fs_name=lucidfs
+ceph_mds_count=1
+ceph_deploy_rgw=False
+ceph_rgw_name=s3
+ceph_rgw_count=1
+ceph_rgw_port=8000
+ceph_deploy_monitoring=False
+ceph_mclock_profile=balanced
+
 [all:vars]
 ansible_connection=ssh
 cluster_name=cerberus
@@ -57,9 +92,11 @@ redundancy=False
 log_vol=False
 nvme_path=/mnt/localdisk/
 # --- storage ---
-# Interim: controller exports /home and the cluster NFS share.
-# When CephFS is available, mount it via the add_nfs hook below (or move
-# home_nfs/cluster_nfs off the controller entirely).
+# home_backend selects where /clusterhome (shared LDAP-user homes) lives:
+#   nfs    — controller exports it over NFS (greenfield bootstrap default;
+#            works before Ceph exists)
+#   cephfs — mounted from the Ceph cluster (deploy playbooks/ceph.yml first)
+home_backend=nfs
 home_nfs=true
 cluster_nfs=true
 cluster_nfs_path=/nfs/cluster

@@ -28,7 +28,10 @@ node_profiles:
       # NUMA 0 (cores 0-63), GPUs 4-7 on NUMA 1 (cores 64-127)
       - { files: "/dev/nvidia[0-3]", cores: "0-63" }
       - { files: "/dev/nvidia[4-7]", cores: "64-127" }
-    slurmd_extra: ""
+    # Reserve 8 cores + 64G from jobs for the co-located Ceph daemons
+    # (slurm.conf sets TaskPluginParam=SlurmdOffSpec); remove when Ceph moves
+    # to dedicated storage nodes.
+    slurmd_extra: "CoreSpecCount=8 MemSpecLimit=65536"
   h100nvl-1:
     gpu: true
     gpu_type: H100NVL

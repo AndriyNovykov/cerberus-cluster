@@ -1,0 +1,11 @@
+---
+ceph_deploy_rgw: false
+ceph_mds_count: 1
+ceph_mclock_profile: balanced
+# Explicit replication for the (replicated) CephFS metadata pool. The pilot
+# left this to defaults, which --single-host-defaults silently set to 2.
+ceph_meta_pool_size: 3
+ceph_meta_pool_min_size: 2
+# CephFS client identity created for the compute/login nodes
+ceph_client_name: "{{ ceph_fs_name }}"
+ceph_client_secret_dir: /etc/opt/oci-hpc/passwords/ceph

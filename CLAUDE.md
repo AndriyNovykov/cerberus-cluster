@@ -9,6 +9,13 @@ the OCI `oci-hpc` quickstart maintained for Lucid; the OCI/Terraform version liv
 There is no application to build/lint/test locally; the "product" is the Ansible playbooks and
 operational scripts that configure hand-installed Ubuntu 24.04 nodes.
 
+Two independent phases share one inventory:
+
+- **Slurm/cluster phase** — `playbooks/site.yml` (below).
+- **Ceph storage phase** — `playbooks/ceph.yml` + `roles/ceph-*`; cephadm owns the
+  stateful lifecycle (see `docs/ceph.md`). Never referenced by site.yml; the Slurm stack
+  consumes CephFS via `home_backend=cephfs` and the `[ceph:vars]` inventory block.
+
 One layer does all the work:
 
 - **Ansible** (`playbooks/`) — `playbooks/site.yml` is the primary entrypoint, composing ~40
