@@ -85,12 +85,27 @@
   ignore_errors: true
 
 # Apptainer installation tasks
-# (no separate apt_key task: apt-key is gone on Ubuntu 25.04+, and
-# apt_repository fetches the PPA signing key itself)
+# apt-key is gone on Ubuntu 25.04+ and gpg keyserver fetches are flaky, so
+# pull the PPA signing key over HTTPS into a keyring. The PPA only builds for
+# LTS releases, so non-LTS hosts use the nearest LTS pocket.
+- name: Ensure apt keyrings directory exists
+  become: true
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Apptainer PPA signing key
+  become: true
+  get_url:
+    url: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF6B0F5193D4F3301EF491FF0AFE36534FC6218AE"
+    dest: /etc/apt/keyrings/apptainer.asc
+    mode: '0644'
+
 - name: Add Apptainer repository
   become: true
   apt_repository:
-    repo: "ppa:apptainer/ppa"
+    repo: "deb [signed-by=/etc/apt/keyrings/apptainer.asc] https://ppa.launchpadcontent.net/apptainer/ppa/ubuntu {{ ansible_distribution_release if ansible_distribution_release in ['jammy', 'noble'] else 'noble' }} main"
     state: present
     filename: "apptainer"
 
