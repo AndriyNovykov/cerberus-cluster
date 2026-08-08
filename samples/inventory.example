@@ -39,7 +39,6 @@ hgxa100 ansible_host=10.0.0.21 ansible_user=ubuntu
 hgxa100
 
 [ceph:vars]
-ceph_mon_ip=10.0.0.21
 ceph_public_network=10.0.0.0/24
 ceph_cluster_network=
 ceph_single_host=true
@@ -54,7 +53,6 @@ ceph_ec_failure_domain=osd
 ceph_ec_k=4
 ceph_ec_m=2
 ceph_ec_profile=ec42
-ceph_fs_name=lucidfs
 ceph_mds_count=1
 ceph_deploy_rgw=False
 ceph_rgw_name=s3
@@ -97,6 +95,10 @@ nvme_path=/mnt/localdisk/
 #            works before Ceph exists)
 #   cephfs — mounted from the Ceph cluster (deploy playbooks/ceph.yml first)
 home_backend=nfs
+# consumed by the cephfs-client role on every node (hence all:vars, not
+# ceph:vars): the mon address and filesystem name of the Ceph cluster
+ceph_mon_ip=10.0.0.21
+ceph_fs_name=lucidfs
 home_nfs=true
 cluster_nfs=true
 cluster_nfs_path=/nfs/cluster
