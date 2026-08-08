@@ -10,6 +10,9 @@
       -:ALL:ALL
   when: ansible_os_family == 'RedHat'
 
+# Whitelist the node's actual admin user and the privilege group — admin
+# usernames differ across hand-installed machines; a hardcoded name here
+# locks out SSH entirely on nodes where it doesn't exist.
 - name: Edit /etc/security/access.conf
   become: true
   blockinfile:
@@ -17,7 +20,8 @@
     block: |
       +:root:ALL
       +:wheel:ALL
-      +:ubuntu:ALL
+      +:{{ ansible_user }}:ALL
+      +:({{ privilege_group_name }}):ALL
       -:ALL:ALL
   when: ansible_distribution == 'Ubuntu'
 
@@ -28,12 +32,19 @@
     dest: /etc/pam.d/sshd
   when: ansible_os_family == 'RedHat'
 
+- name: Check that pam_slurm_adopt is installed
+  stat:
+    path: /usr/local/lib/security/pam_slurm_adopt.so
+  register: pam_adopt_so
+
+# A 'required' PAM module whose .so is missing denies ALL logins — only wire
+# it into sshd when the module actually exists.
 - name: Add required pam account permission
   become: true
   lineinfile:
     path: /etc/pam.d/sshd
     line: "account    required      /usr/local/lib/security/pam_slurm_adopt.so"
-    state: present
+    state: "{{ 'present' if pam_adopt_so.stat.exists else 'absent' }}"
     backup: yes
     insertafter: EOF
   when: ansible_distribution == 'Ubuntu'
