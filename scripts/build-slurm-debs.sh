@@ -44,13 +44,22 @@ tar xjf "slurm-${VERSION}.tar.bz2"
 cd "slurm-${VERSION}"
 
 echo "== Building"
+# --with-pam_dir is load-bearing: without it slurm installs PAM modules to
+# /lib/security, which fpm below silently drops (it only packages usr etc),
+# and compute_pam.yml stats /usr/local/lib/security/pam_slurm_adopt.so.
+# configure rejects a pam_dir that doesn't exist on the build host.
+sudo mkdir -p /usr/local/lib/security
 ./configure --prefix=/usr/local --sysconfdir=/etc/slurm \
-  --with-pmix --enable-pam --with-jwt
+  --with-pmix --enable-pam --with-jwt \
+  --with-pam_dir=/usr/local/lib/security
 make -j"$JOBS" > /dev/null
 make install DESTDIR="$BUILD_ROOT/pkg" > /dev/null
-# PAM modules
-make -C contribs/pam install DESTDIR="$BUILD_ROOT/pkg" > /dev/null || true
-make -C contribs/pam_slurm_adopt install DESTDIR="$BUILD_ROOT/pkg" > /dev/null || true
+# PAM modules — must build; a silent miss ships a deb whose stat-guard in
+# compute_pam.yml quietly skips the SSH hardening it is supposed to enable.
+make -C contribs/pam install DESTDIR="$BUILD_ROOT/pkg" < /dev/null
+make -C contribs/pam_slurm_adopt install DESTDIR="$BUILD_ROOT/pkg" < /dev/null
+test -e "$BUILD_ROOT/pkg/usr/local/lib/security/pam_slurm_adopt.so" || {
+  echo "ERROR: pam_slurm_adopt.so missing from the package tree" >&2; exit 1; }
 
 echo "== Packaging ${DEB_NAME}"
 mkdir -p "$OUTPUT_DIR"
