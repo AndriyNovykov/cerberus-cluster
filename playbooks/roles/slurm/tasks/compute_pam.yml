@@ -49,6 +49,22 @@
     insertafter: EOF
   when: ansible_distribution == 'Ubuntu'
 
+# SchedMD pattern: admins whitelisted in access.conf short-circuit past
+# pam_slurm_adopt (sufficient success ends the account stack); LDAP users
+# fail the -:ALL:ALL check non-fatally and fall through to pam_slurm_adopt,
+# which admits them only if they hold a running job on this node. Without
+# this, pam_slurm_adopt (action_no_jobs=deny, root-only exemption) denies
+# the admin user on every login, including pubkey.
+- name: Add sufficient pam_access before pam_slurm_adopt in sshd
+  become: true
+  lineinfile:
+    path: /etc/pam.d/sshd
+    line: "account    sufficient    pam_access.so"
+    state: "{{ 'present' if pam_adopt_so.stat.exists else 'absent' }}"
+    insertbefore: 'pam_slurm_adopt\.so'
+    backup: yes
+  when: ansible_distribution == 'Ubuntu'
+
 - name: Comment pam_systemd.so in /etc/pam.d/common-session
   become: true
   lineinfile:
