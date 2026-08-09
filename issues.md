@@ -126,11 +126,11 @@ Follow the greenfield sequence in [docs/onprem-deploy.md](docs/onprem-deploy.md)
   (`~/cerberus-artifacts/`, sha256 starts 79034796) into
   `/opt/lucid-hpc/slurm_debs/`. It contains pam_slurm_adopt.so.
 - [ ] Seed the repo onto sv5 via git bundle (no git-remote access from the cluster).
-- [ ] Inventory: start from the updated `samples/inventory.example` —
-  `localdisk=False` (hgx01's data NVMes belong to Ceph; RAIDing them via the
-  localdisk role would destroy the OSD plan), `pam=False` initially,
-  `home_backend=nfs` initially, `healthchecks=true`, real 10.20.10.x IPs, set
-  `admin_password`.
+- [ ] Inventory: pre-written at `~/cerberus-artifacts/hosts.rebuild` on the admin
+  workstation (hgx01 hostname, real IPs, all audited flags: `localdisk=False` —
+  hgx01's data NVMes belong to Ceph; `pam=False` and `home_backend=nfs` initially;
+  `healthchecks=true`). One open decision inside it: lucid's `ansible_user=exx` —
+  change to `ubuntu` if the reinstall standardizes the admin user.
 - [ ] Verify `ceph_data_device_model=MZQL23T8HCLS` still matches hgx01's data drives
   (`lsblk -o NAME,MODEL`); OS drives are MZ1L21T9HCLS and must not match.
 - [ ] Order: configure (NFS homes) → reboot GPU nodes → configure → ceph.yml
