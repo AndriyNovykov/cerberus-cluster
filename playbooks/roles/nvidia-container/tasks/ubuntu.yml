@@ -33,8 +33,6 @@
     state: present
   when: existing_nvct_repo.stdout == ""
 
-# enroot only needs nvidia-container-cli from the toolkit — no docker daemon,
-# no runtime wiring
 - name: Install nvidia-container-toolkit
   vars:
     package_name:
@@ -43,3 +41,12 @@
     package_cache: true
   include_role:
     name: safe_yum
+
+- name: Configure the container runtime for Docker
+  become: true
+  command: nvidia-ctk runtime configure --runtime=docker
+
+- name: Start Docker
+  ansible.builtin.service:
+    name: "docker"
+    state: restarted
