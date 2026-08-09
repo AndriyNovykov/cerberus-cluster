@@ -76,3 +76,18 @@
     overwrite: true
     path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
 
+# Vendored from ceph/ceph squid branch: monitoring/ceph-mixin/dashboards_out/
+# ceph-cluster.json — built for the mgr Prometheus exporter's metric names.
+- name: Save Ceph cluster dashboard
+  copy:
+    src: ceph-cluster.json
+    dest: "/opt/lucid-hpc/monitoring/ceph-cluster.json"
+
+- name: Import Ceph cluster Grafana dashboard
+  community.grafana.grafana_dashboard:
+    grafana_url: http://localhost:3000
+    state: present
+    commit_message: Updated by ansible
+    overwrite: true
+    path: "/opt/lucid-hpc/monitoring/ceph-cluster.json"
+

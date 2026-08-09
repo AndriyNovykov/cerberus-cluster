@@ -78,14 +78,25 @@
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
-- name: Copying default alert rules
+- name: Copying alert rules
   become: true
   copy:
-    src: files/alert.rules.yml
+    src: "files/{{ item }}"
     dest: /etc/prometheus
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
     mode: '0775'
+  with_items:
+    - alert.rules.yml
+    - ceph.rules.yml
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+
+# A bad rules file prevents Prometheus from starting after the restart below
+- name: Validate alert rules with promtool
+  become: true
+  command: /usr/local/bin/promtool check rules /etc/prometheus/alert.rules.yml /etc/prometheus/ceph.rules.yml
+  changed_when: false
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 

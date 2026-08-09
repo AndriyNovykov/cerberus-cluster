@@ -1,0 +1,50 @@
+# Ceph alert rules, evaluated against the mgr Prometheus exporter (job=ceph).
+# Kept self-contained so they move verbatim to the future central
+# VictoriaMetrics/vmalert stack.
+groups:
+- name: CephAlerts
+  rules:
+  - alert: CephScrapeDown
+    expr: max(up{job="ceph"}) == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Ceph metrics unreachable"
+      description: "No Ceph mgr answered the Prometheus scrape for 5 minutes — the mgr daemons or the network path are down."
+
+  - alert: CephHealthError
+    expr: ceph_health_status == 2
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Ceph cluster in HEALTH_ERR"
+      description: "Ceph has reported HEALTH_ERR for 5 minutes. Run 'ceph health detail' on the mon host."
+
+  - alert: CephHealthWarning
+    expr: ceph_health_status == 1
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Ceph cluster in HEALTH_WARN"
+      description: "Ceph has reported HEALTH_WARN for 15 minutes. Run 'ceph health detail' on the mon host."
+
+  - alert: CephOSDDown
+    expr: ceph_osd_up == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Ceph OSD down: {{ $labels.ceph_daemon }}"
+      description: "{{ $labels.ceph_daemon }} has been down for 5 minutes. EC 4+2 tolerates two failures — check 'ceph osd tree' before more are lost."
+
+  - alert: CephFSNearFull
+    expr: ceph_cluster_total_used_bytes / ceph_cluster_total_bytes > 0.85
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Ceph cluster storage above 85%"
+      description: "Raw usage is {{ $value | humanizePercentage }} of capacity. CephFS write performance degrades near-full and OSDs stop accepting writes at the full ratio."

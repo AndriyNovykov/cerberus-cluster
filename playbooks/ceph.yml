@@ -65,6 +65,16 @@
     - include_role:
         name: ceph-pools
 
+- name: Enable the mgr Prometheus exporter
+  hosts: ceph_bootstrap
+  become: true
+  gather_facts: false
+  tags: monitoring
+  tasks:
+    - include_role:
+        name: ceph-bootstrap
+        tasks_from: monitoring.yml
+
 # =============================================================================
 # Teardown — never runs unless explicitly requested by tag AND confirmation
 # =============================================================================

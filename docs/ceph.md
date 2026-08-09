@@ -39,7 +39,7 @@ storage nodes arrive:
 - Ceph daemons share the box with Slurm jobs; the `a100-hgx8` node profile reserves
   8 cores + 64 GB from Slurm (`CoreSpecCount`/`MemSpecLimit`).
 - The monitoring stack is skipped (`ceph_deploy_monitoring=False`) — the cluster
-  controller already runs Prometheus/Grafana.
+  controller already runs Prometheus/Grafana; see Monitoring below.
 - CephFS is mounted on the OSD host itself; acceptable with this much RAM, but a known
   anti-pattern to retire with the hardware.
 
@@ -48,6 +48,22 @@ pool (size 3 / min_size 2), one MDS. RGW is a gated flag (`ceph_deploy_rgw`), de
 A CephFS client key (`client.lucidfs`) is created by the pools role and stored on the
 controller under `/etc/opt/lucid-hpc/passwords/ceph/`; the `cephfs-client` role distributes
 it and mounts `/clusterhome` on every node.
+
+## Monitoring
+
+cephadm's bundled Prometheus/Grafana/alertmanager stack stays off
+(`ceph_deploy_monitoring=False`, a bootstrap-time-only flag). Instead, the ceph phase
+enables the **mgr Prometheus module** (`ceph.yml` → `ceph-bootstrap/tasks/monitoring.yml`),
+which exposes `/metrics` on the active mgr at **:9283**, bound to all interfaces. The
+cluster controller's Prometheus scrapes it (job `ceph`, all `[ceph]` hosts as targets —
+the module follows mgr failover) and evaluates
+`roles/prometheus/files/ceph.rules.yml`: scrape-dead, HEALTH_WARN/ERR, OSD down, and
+cluster >85% full. Grafana gets the vendored ceph-mixin "Ceph - Cluster" dashboard.
+
+Design intent: observability will eventually centralize on an off-prem
+VictoriaMetrics/Grafana instance fed by per-cluster agents. The scrape job and rules
+file are deliberately self-contained so they lift out unchanged; the on-controller
+Prometheus/Grafana is the interim pilot.
 
 ## Runbook
 

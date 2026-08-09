@@ -1,0 +1,31 @@
+---
+# Enable the mgr Prometheus exporter on :9283. The cluster controller's
+# Prometheus scrapes it (roles/prometheus); cephadm's bundled monitoring stack
+# stays off (ceph_deploy_monitoring=False). See docs/ceph.md "Monitoring".
+
+- name: Read enabled mgr modules
+  ansible.builtin.command: ceph mgr module ls --format json
+  register: ceph_mgr_modules
+  changed_when: false
+
+- name: Enable the prometheus mgr module
+  ansible.builtin.command: ceph mgr module enable prometheus
+  when: "'prometheus' not in (ceph_mgr_modules.stdout | from_json).enabled_modules"
+
+- name: Read mgr/prometheus/server_addr
+  ansible.builtin.command: ceph config get mgr mgr/prometheus/server_addr
+  register: ceph_prom_addr
+  changed_when: false
+
+# Default binds "::"; pin 0.0.0.0 explicitly — the scraper lives on another host
+- name: Bind the exporter on all interfaces
+  ansible.builtin.command: ceph config set mgr mgr/prometheus/server_addr 0.0.0.0
+  when: (ceph_prom_addr.stdout | trim) != '0.0.0.0'
+
+- name: Wait for the exporter to answer
+  ansible.builtin.uri:
+    url: http://localhost:9283/metrics
+  register: ceph_prom_probe
+  retries: 12
+  delay: 5
+  until: ceph_prom_probe.status | default(0) == 200

@@ -5,6 +5,7 @@ global:
 
 rule_files:
   - alert.rules.yml
+  - ceph.rules.yml
 
 scrape_configs:
   - job_name: 'prometheus'
@@ -19,3 +20,12 @@ scrape_configs:
           # simply the hostname
           oci_name: {{ host }}
 {% endfor %}
+{% if groups['ceph'] is defined and groups['ceph'] | length > 0 %}
+  # Ceph mgr Prometheus exporter — all [ceph] hosts (the module follows the
+  # active mgr; standbys just return an empty scrape). Self-contained by
+  # design: lifts out unchanged when collection moves to the central stack.
+  - job_name: 'ceph'
+    honor_labels: true
+    static_configs:
+      - targets: [{% for h in groups['ceph'] %}'{{ hostvars[h].ansible_host | default(h) }}:9283'{{ ", " if not loop.last }}{% endfor %}]
+{% endif %}
