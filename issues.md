@@ -55,7 +55,26 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
 - [ ] **Multi-tenant Slurm policy** — accounts/QOS/fairshare/per-lab partitions when real
   labs onboard; NodeSet scaffolding is already generated from profile features.
 
-## Suggested order for the near-term block
+## Pre-wipe batch (agreed 2026-08-08 — do these BEFORE the 24.04 rebuild)
 
-rebuild → pyxis test → healthchecks → PAM → backup script — that sequence reaches
-"safe to onboard the first real lab."
+The current cluster is disposable, making it the cheapest place to validate risky
+changes. Order:
+
+1. **PAM hardening trial** — flip `pam=true` on the live cluster; verify admin SSH
+   survives, a user with a running job can SSH to the node, a jobless user is denied;
+   flip back (or leave on if clean). Validates the rewritten `compute_pam.yml`
+   (whitelists `ansible_user` + privilege group; skips pam_slurm_adopt when the .so is
+   absent — the old version hard-locked lucid).
+2. **Pyxis/enroot smoke test** — `srun --container-image` has never been exercised
+   (Apptainer path is verified; pyxis is not).
+3. **Healthchecks port** — de-OCI `roles/healthchecks/files/check_gpu_setup.py`
+   (metadata calls → node_profiles), flip `healthchecks=true`, verify a simulated GPU
+   failure drains the node.
+4. **Ceph observability** — enable the mgr Prometheus module, add a scrape job to sv5's
+   Prometheus + alert rules (OSD down, fs near-full).
+5. **`scripts/backup-controller-state.sh`** — passwords dir + slapcat + accounting
+   mysqldump + cluster.key; not needed for this rebuild (no state kept) but must exist
+   before real users do.
+
+Then: rebuild → post-rebuild the near-term list above reaches "safe to onboard the
+first real lab."
