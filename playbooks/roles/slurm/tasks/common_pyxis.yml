@@ -57,11 +57,30 @@
     dest: /tmp/pyxis
     version: "{{ pyxis_version | default('v0.24.0') }}"
 
+# Build only — the Makefile's install target pipes echo into `install
+# /dev/stdin`, which fails under Ansible's no-stdin execution. We install the
+# plugin ourselves (the pyxis.conf that target writes is unused; we manage
+# plugstack.conf below).
 - name: compile
-  become: true
-  command: make install
+  command: make
   args:
     chdir: /tmp/pyxis/
+  when: not ansible_check_mode
+
+- name: Ensure the slurm plugin directory exists
+  become: true
+  file:
+    path: /usr/local/lib/slurm
+    state: directory
+    mode: '0755'
+
+- name: Install the pyxis plugin
+  become: true
+  copy:
+    src: /tmp/pyxis/spank_pyxis.so
+    dest: /usr/local/lib/slurm/spank_pyxis.so
+    remote_src: true
+    mode: '0644'
   when: not ansible_check_mode
 
 - name: Assert the pyxis plugin exists before declaring it required
