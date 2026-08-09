@@ -17,10 +17,18 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   0777 enroot cache has multi-user ownership collision potential; each node pulls images
   independently (registry mirror later); enroot storage lands on the root fs while
   localdisk=False.
-- [ ] **Re-enable PAM hardening** — `pam=False` everywhere. After the rebuilt cluster is
-  verified, flip it on and confirm the fixed `compute_pam.yml` (whitelists the real admin
-  user + privilege group; only wires pam_slurm_adopt when the module exists). This is what
-  keeps users without jobs off compute nodes.
+- [x] **Re-enable PAM hardening** — done 2026-08-09, live with `pam=True`: jobless LDAP
+  users are denied on compute nodes, job holders get in and are adopted into the job
+  cgroup, admin SSH survives. Two fixes were required first: (1) the slurm deb never
+  contained pam_slurm_adopt.so — configure needs `--with-pam_dir=/usr/local/lib/security`
+  or the module lands in /lib/security and fpm drops it (build-slurm-debs.sh now fails
+  loudly); (2) compute_pam.yml needed `account sufficient pam_access.so` above the adopt
+  line, otherwise pam_slurm_adopt (root-only exemption) denies the admin user too.
+  Follow-ups: repeat runs churn/duplicate the pam_access line in common-auth (sssd role
+  re-adds, slurm role comments — gate sssd's lineinfile on `not pam|bool`); the 25.10
+  controller deb still lacks the .so (harmless — compute_pam never runs there; fixed deb
+  comes with the 24.04 rebuild); flipping pam=False reverts nothing (manual runbook in
+  the PAM plan file / git history).
 - [ ] **Port the healthchecks role** — `roles/healthchecks/files/check_gpu_setup.py` still
   contains OCI metadata calls; `healthchecks=False` until cleaned. It is the
   GPU-drain-on-failure safety net; want it before real users.
@@ -65,11 +73,8 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
 The current cluster is disposable, making it the cheapest place to validate risky
 changes. Order:
 
-1. **PAM hardening trial** — flip `pam=true` on the live cluster; verify admin SSH
-   survives, a user with a running job can SSH to the node, a jobless user is denied;
-   flip back (or leave on if clean). Validates the rewritten `compute_pam.yml`
-   (whitelists `ansible_user` + privilege group; skips pam_slurm_adopt when the .so is
-   absent — the old version hard-locked lucid).
+1. ~~**PAM hardening trial**~~ — done 2026-08-09, left ON (see near-term list for
+   details and follow-ups).
 2. **Pyxis/enroot smoke test** — `srun --container-image` has never been exercised
    (Apptainer path is verified; pyxis is not).
 3. **Healthchecks port** — de-OCI `roles/healthchecks/files/check_gpu_setup.py`
