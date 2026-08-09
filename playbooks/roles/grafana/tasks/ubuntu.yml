@@ -70,8 +70,12 @@
 
 - name: Apply the Grafana admin password
   become: true
+  # The deb's server unit gets its data path from /etc/default/grafana-server,
+  # not the ini — without the override the CLI writes a fresh DB under
+  # /usr/share/grafana/data and the reset never reaches the real one.
   command: >-
     grafana-cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini
+    --configOverrides cfg:default.paths.data=/var/lib/grafana
     admin reset-admin-password {{ grafana_security.admin_password | quote }}
   when: grafana_admin_check.status == 401
   no_log: true
