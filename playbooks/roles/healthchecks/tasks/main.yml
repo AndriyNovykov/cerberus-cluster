@@ -1,4 +1,4 @@
-- name: Create systemd unit dirs
+- name: Create healthchecks directory
   become: true
   file:
     name: '/opt/lucid-hpc/healthchecks'
@@ -6,55 +6,25 @@
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
 
-- name: Copy files
+- name: Copy healthcheck scripts
   become: true
-  copy: 
+  copy:
     src: '{{ item }}'
     dest: '/opt/lucid-hpc/healthchecks/{{ item }}'
-    force: no
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
-  with_items: 
+  with_items:
     - check_gpu_setup.py
     - gpu_bw_test.py
-    - rdma_link_flapping.py
     - xid_checker.py
     - shared_logging.py
 
-- name: Download oci-mesh-pinger
-  get_url:
-    url: "{{mp_download_link}}"
-    dest: "/tmp/"
-  when: ('controller' in group_names)
-
-- name: untar meshpinger
-  unarchive:
-    src: "/tmp/{{mp_filename}}"
-    dest: "/opt/lucid-hpc/healthchecks"
-  when: ('controller' in group_names)
-
-- name: Copy files
+- name: Write node profile for check_gpu_setup.py
   become: true
-  copy: 
-    src: '{{ item }}'
-    dest: '/opt/lucid-hpc/healthchecks/{{ item }}'
-    force: no
+  copy:
+    content: "{{ {'gpu_count': this_node_profile.gpu_count | default(0),
+                  'gpu_type': this_node_profile.gpu_type | default('')} | to_nice_json }}\n"
+    dest: /opt/lucid-hpc/healthchecks/node_profile.json
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
-    mode: 0755
-  with_items: 
-    - run_meshpinger.sh
-  when: ('controller' in group_names)
-
-- name: Make sure meshpinger dependencies are installed. 
-  vars: 
-    package_name: 
-      - fping
-      - jq
-      - lshw
-      - ethtool
-    package_state: latest
-  include_role: 
-    name: safe_yum
-  ignore_errors: true
-  
+    mode: '0644'

@@ -69,7 +69,7 @@ class BandwidthTest:
             
 
         logger.debug("GPU Idle Count: {}".format(gpu_idle_count))
-        if gpu_idle_count != 8:
+        if gpu_idle_count != gpus:
             logger.error("GPU processes are running on the host. Please make sure no processes are running on the GPU before you re-test")
             self.results = None
             return self.results
