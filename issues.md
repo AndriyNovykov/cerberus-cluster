@@ -64,12 +64,21 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
 
 ## Opportunistic / quality
 
-- [ ] **Ceph observability** — the bundled monitoring stack is skipped
-  (`ceph_deploy_monitoring=False`); wire the mgr Prometheus module into sv5's Prometheus
-  and add basic alerts (OSD down, fs near-full).
+- [x] **Ceph observability** — done 2026-08-09: mgr Prometheus module enabled on :9283
+  (ceph.yml `--tags monitoring`), scraped by the controller Prometheus (job `ceph`),
+  `ceph.rules.yml` alerts (scrape-dead, HEALTH_WARN/ERR, OSD down, >85% full,
+  promtool-validated on deploy), ceph-mixin cluster dashboard in Grafana. Drill-tested
+  live: stopping osd.7 sent CephOSDDown+CephHealthWarning pending, recovery cleared
+  them. Bundled cephadm stack stays off. Design intent (recorded in docs/ceph.md):
+  observability later centralizes on an off-prem VictoriaMetrics/Grafana fed by
+  per-cluster agents (vmagent remote_write); the scrape job + rules are self-contained
+  to lift out unchanged — sv5's Prometheus/Grafana is the interim pilot.
 - [ ] **Alert delivery** — Prometheus has rules but no receiver. The notifications role
   (goslmailer/Slack Slurm notifications) exists but was never installed; installing it
-  also silences slurmctld's `MailProg is invalid` log noise.
+  also silences slurmctld's `MailProg is invalid` log noise. Plan against the future
+  central observability stack (decided 2026-08-09: off-prem cloud VictoriaMetrics +
+  Grafana, per-cluster vmagent remote_write, central vmalert + per-cluster dead-man
+  alert) rather than building per-cluster Alertmanager.
 - [ ] **Multi-tenant Slurm policy** — accounts/QOS/fairshare/per-lab partitions when real
   labs onboard; NodeSet scaffolding is already generated from profile features.
 
@@ -83,8 +92,7 @@ changes. Order:
 2. ~~**Pyxis/enroot smoke test**~~ — done 2026-08-08 (see near-term list).
 3. ~~**Healthchecks port**~~ — done 2026-08-09, live and drain-tested (see near-term
    list).
-4. **Ceph observability** — enable the mgr Prometheus module, add a scrape job to sv5's
-   Prometheus + alert rules (OSD down, fs near-full).
+4. ~~**Ceph observability**~~ — done 2026-08-09, drill-tested (see opportunistic list).
 5. **`scripts/backup-controller-state.sh`** — passwords dir + slapcat + accounting
    mysqldump + cluster.key; not needed for this rebuild (no state kept) but must exist
    before real users do.
