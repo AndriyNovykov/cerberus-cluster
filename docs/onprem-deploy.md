@@ -1,7 +1,35 @@
 # On-prem deployment guide
 
-Bootstrap procedure for the Cerberus bare-metal Slurm cluster. Current target
-topology (SV4):
+Bootstrap procedure for the Cerberus bare-metal Slurm cluster.
+
+## Full greenfield sequence (no prior state)
+
+The complete from-scratch order; each step is detailed in the sections below
+or in [ceph.md](ceph.md). Nothing survives from a previous deployment — fresh
+certs, LDAP, munge key, Slurm cluster, and Ceph fsid are all generated.
+
+```text
+1. OS install on every node (hostname, static IP, admin user + NOPASSWD sudo,
+   openssh-server, python3, controller pubkey in authorized_keys)
+2. On the controller: clone repo to /opt/oci-hpc, run bin/controller.sh,
+   ssh-keygen ~/.ssh/cluster.key, distribute cluster.key.pub to all nodes
+3. scripts/build-slurm-debs.sh
+4. cp samples/inventory.example /etc/ansible/hosts and edit: host lines,
+   ceph groups, node_profiles per host, home_backend=nfs (bootstrap default —
+   CephFS does not exist yet)
+5. bin/configure.sh          # full cluster on interim NFS homes
+   (reboot GPU nodes if drivers were freshly installed; re-run)
+6. ansible-playbook playbooks/ceph.yml                          # dry-run report
+   ansible-playbook playbooks/ceph.yml -e ceph_confirm_destroy=true
+   ansible-playbook playbooks/ceph.yml --tags pools
+7. Flip home_backend=cephfs in /etc/ansible/hosts, re-run bin/configure.sh
+8. Verify (section 6 below + ceph.md); cluster user add <first user>
+```
+
+The one hard ordering rule: the Ceph cluster must exist before
+`home_backend=cephfs`. Everything else regenerates idempotently.
+
+Current target topology (SV4):
 
 | Host | Hardware | Role | node_profile |
 |---|---|---|---|
