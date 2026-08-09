@@ -37,9 +37,15 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   clean pass on both GPU nodes, simulated failure (expected-GPU mismatch on lucid)
   drained the node via the 300s HealthCheckProgram cycle with reason
   `Healthcheck:: Missing GPU Error`, resume + LDAP-user GPU job OK afterwards.
-- [ ] **Backups** — the OCI backups role was deleted. Minimum: script controller state
-  (`/etc/opt/lucid-hpc/passwords/`, `slapcat`, accounting mysqldump, cluster.key) to CephFS
-  or off-cluster. Proper: against Ceph RGW S3 once it exists.
+- [x] **Backups (minimum)** — done 2026-08-09: `scripts/backup-controller-state.sh`
+  (root) tars passwords dir, slapcat dumps, accounting mysqldump, munge key,
+  cluster.key, `/etc/ansible/hosts`, and queues.conf to
+  `/clusterhome/.backups/controller/` (0600, retention 14, BACKUP_DIR/RETENTION
+  overridable; restore notes in the header). Daily 00:30 root cron installed by the
+  new `roles/backups` from site.yml. Verified live: contents complete, SQL restore
+  drill into a scratch DB (31 tables), retention pruning, idempotent role. Proper:
+  destination moves to Ceph RGW S3 / off-site (CephFS lives on hgxa100 — survives a
+  controller wipe, not a storage-host loss).
 - [x] **`/opt/oci-hpc` → `/opt/lucid-hpc` rename** — done 2026-08-08 (repo + live cluster).
 
 ## Blocked on hardware / infrastructure decisions
@@ -93,9 +99,8 @@ changes. Order:
 3. ~~**Healthchecks port**~~ — done 2026-08-09, live and drain-tested (see near-term
    list).
 4. ~~**Ceph observability**~~ — done 2026-08-09, drill-tested (see opportunistic list).
-5. **`scripts/backup-controller-state.sh`** — passwords dir + slapcat + accounting
-   mysqldump + cluster.key; not needed for this rebuild (no state kept) but must exist
-   before real users do.
+5. ~~**`scripts/backup-controller-state.sh`**~~ — done 2026-08-09, restore-drilled
+   (see near-term list).
 
-Then: rebuild → post-rebuild the near-term list above reaches "safe to onboard the
-first real lab."
+**Pre-wipe batch complete (2026-08-09).** Then: rebuild → post-rebuild the near-term
+list above reaches "safe to onboard the first real lab."
