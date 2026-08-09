@@ -153,9 +153,12 @@
 # --- Client credential for the compute/login nodes ---------------------------
 # `ceph fs authorize` is idempotent when the caps match; it errors if an
 # existing client has different caps (which we treat as a real failure).
+# 'p' lets clients set quota/layout xattrs — onboard.sh sets per-user
+# ceph.quota.max_bytes on /clusterhome homes (verified 2026-08-09: plain rw
+# gets EACCES on setfattr).
 - name: Authorize the CephFS client
   ansible.builtin.command: >-
-    ceph fs authorize {{ ceph_fs_name }} client.{{ ceph_client_name }} / rw
+    ceph fs authorize {{ ceph_fs_name }} client.{{ ceph_client_name }} / rwp
   register: ceph_client_auth
   changed_when: false
   no_log: true
