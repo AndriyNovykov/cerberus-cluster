@@ -1,6 +1,6 @@
 # Open issues / remaining work
 
-Status as of 2026-08-08. The 3-node test cluster (sv5 controller, hgxa100, lucid) is fully
+Status as of 2026-08-09. The 3-node test cluster (sv5 controller, hgxa100, lucid) is fully
 deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
 
 ## Near-term (before or at the 24.04 rebuild)
@@ -29,9 +29,14 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   controller deb still lacks the .so (harmless — compute_pam never runs there; fixed deb
   comes with the 24.04 rebuild); flipping pam=False reverts nothing (manual runbook in
   the PAM plan file / git history).
-- [ ] **Port the healthchecks role** — `roles/healthchecks/files/check_gpu_setup.py` still
-  contains OCI metadata calls; `healthchecks=False` until cleaned. It is the
-  GPU-drain-on-failure safety net; want it before real users.
+- [x] **Port the healthchecks role** — done 2026-08-09, live with `healthchecks=true`:
+  check_gpu_setup.py de-OCI'd (metadata/OCA/RTTCC/mlxlink/link-flapping/meshpinger
+  deleted — no RDMA fabric; git history keeps them); expected GPU count now comes from
+  `node_profile.json` written by the role from `this_node_profile`. Kept checks: ECC,
+  row remap, XID, bus, GPU count, optional --bw-test. Verified on the live cluster:
+  clean pass on both GPU nodes, simulated failure (expected-GPU mismatch on lucid)
+  drained the node via the 300s HealthCheckProgram cycle with reason
+  `Healthcheck:: Missing GPU Error`, resume + LDAP-user GPU job OK afterwards.
 - [ ] **Backups** — the OCI backups role was deleted. Minimum: script controller state
   (`/etc/opt/lucid-hpc/passwords/`, `slapcat`, accounting mysqldump, cluster.key) to CephFS
   or off-cluster. Proper: against Ceph RGW S3 once it exists.
@@ -75,11 +80,9 @@ changes. Order:
 
 1. ~~**PAM hardening trial**~~ — done 2026-08-09, left ON (see near-term list for
    details and follow-ups).
-2. **Pyxis/enroot smoke test** — `srun --container-image` has never been exercised
-   (Apptainer path is verified; pyxis is not).
-3. **Healthchecks port** — de-OCI `roles/healthchecks/files/check_gpu_setup.py`
-   (metadata calls → node_profiles), flip `healthchecks=true`, verify a simulated GPU
-   failure drains the node.
+2. ~~**Pyxis/enroot smoke test**~~ — done 2026-08-08 (see near-term list).
+3. ~~**Healthchecks port**~~ — done 2026-08-09, live and drain-tested (see near-term
+   list).
 4. **Ceph observability** — enable the mgr Prometheus module, add a scrape job to sv5's
    Prometheus + alert rules (OSD down, fs near-full).
 5. **`scripts/backup-controller-state.sh`** — passwords dir + slapcat + accounting
