@@ -69,6 +69,12 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
 - [ ] **Container registry** — deferred by choice. Plan: Zot or Harbor (LDAP auth) backed
   by Ceph RGW S3; optionally a Distribution pull-through cache sooner.
 - [ ] **RGW / S3** — one flag (`ceph_deploy_rgw=true`) when something needs it.
+  Trial-validated 2026-08-09 on the disposable cluster: flag flip + `--tags pools`
+  deployed rgw.s3 on :8000 first-try (single-host CRUSH handled by
+  `--single-host-defaults`), full boto3 put/get/delete round-trip OK, HEALTH_OK.
+  Note for the real deployment: RGW auto-creates `default.rgw.buckets.data` as
+  replicated — consider an EC data pool (`radosgw-admin zone placement` or
+  pre-created pool) before storing real volume.
 
 ## Opportunistic / quality
 
