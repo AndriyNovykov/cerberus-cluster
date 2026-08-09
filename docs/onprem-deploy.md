@@ -113,6 +113,8 @@ lucid (H100 NVL):
 ```bash
 nvidia-smi                                # driver up, 1 GPU
 srun --gres=gpu:H100NVL:1 nvidia-smi -L
+# containerized (pyxis/enroot) — note enroot separates the registry with '#':
+srun --gres=gpu:H100NVL:1 --container-image="docker://nvcr.io#nvidia/cuda:12.4.1-base-ubuntu22.04" nvidia-smi -L
 ```
 
 hgx01 (HGX A100 — fabric manager is mandatory):

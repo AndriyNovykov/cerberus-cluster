@@ -48,18 +48,27 @@
     name: safe_yum
   when: ansible_os_family == 'Debian'
 
+# Pinned: plugstack.conf marks the plugin 'required', so a silently missing
+# .so makes slurmd/srun fail hard — the build must succeed loudly, on a known
+# version (v0.24.0 verified against Slurm 24.05 on this cluster).
 - name: clone pyxis repo
   git:
     repo: https://github.com/NVIDIA/pyxis.git
     dest: /tmp/pyxis
-  ignore_errors: true
+    version: "{{ pyxis_version | default('v0.24.0') }}"
 
 - name: compile
   become: true
   command: make install
   args:
     chdir: /tmp/pyxis/
-  ignore_errors: true
+  when: not ansible_check_mode
+
+- name: Assert the pyxis plugin exists before declaring it required
+  stat:
+    path: /usr/local/lib/slurm/spank_pyxis.so
+  register: pyxis_so
+  failed_when: not pyxis_so.stat.exists
   when: not ansible_check_mode
 
 - name: create plugstack.conf

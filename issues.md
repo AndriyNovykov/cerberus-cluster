@@ -10,8 +10,13 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   [docs/onprem-deploy.md](docs/onprem-deploy.md). Also the first validation of the
   controller-side roles (openldap/mysql/grafana/prometheus/slurmctld) on 24.04 — compute
   side is already 24.04-proven on hgxa100.
-- [ ] **Enroot/pyxis container smoke test** — `srun --container-image` has never actually
-  been exercised (Apptainer path is verified; the pyxis path is not).
+- [x] **Enroot/pyxis container smoke test** — done 2026-08-08: CPU + GPU containers
+  verified on both nodes as an LDAP user. Fixes: AppArmor userns relaxation on 24.04+
+  (nvidia-enroot role), pyxis pinned to v0.24.0 with loud build failure. Note for users:
+  enroot registry syntax is `docker://REGISTRY#IMAGE:TAG`. Known deferred items: shared
+  0777 enroot cache has multi-user ownership collision potential; each node pulls images
+  independently (registry mirror later); enroot storage lands on the root fs while
+  localdisk=False.
 - [ ] **Re-enable PAM hardening** — `pam=False` everywhere. After the rebuilt cluster is
   verified, flip it on and confirm the fixed `compute_pam.yml` (whitelists the real admin
   user + privilege group; only wires pam_slurm_adopt when the module exists). This is what
