@@ -258,18 +258,18 @@
         name: prometheus
       when: cluster_monitoring|default(false)|bool
 
+# No docker: enroot imports images with its own fetcher and only needs
+# nvidia-container-cli from the toolkit. (The docker role also dragged in
+# containerd.io's runc, which broke cephadm on co-located Ceph nodes.)
 - hosts: compute
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
   tasks:
-    - include_role: 
-        name: docker
-      when: enroot|default(true)|bool
-    - include_role: 
+    - include_role:
         name: nvidia-container
       when: enroot|default(true)|bool
-    - include_role: 
+    - include_role:
         name: nvidia-enroot
       when: enroot|default(true)|bool
     - include_role:
