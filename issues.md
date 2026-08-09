@@ -24,11 +24,13 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   or the module lands in /lib/security and fpm drops it (build-slurm-debs.sh now fails
   loudly); (2) compute_pam.yml needed `account sufficient pam_access.so` above the adopt
   line, otherwise pam_slurm_adopt (root-only exemption) denies the admin user too.
-  Follow-ups: repeat runs churn/duplicate the pam_access line in common-auth (sssd role
-  re-adds, slurm role comments — gate sssd's lineinfile on `not pam|bool`); the 25.10
-  controller deb still lacks the .so (harmless — compute_pam never runs there; fixed deb
-  comes with the 24.04 rebuild); flipping pam=False reverts nothing (manual runbook in
-  the PAM plan file / git history).
+  Follow-ups: ~~pam_access churn in common-auth~~ fixed 2026-08-09 (sssd's lineinfile
+  gated on `not pam|bool`; live duplicates deduped; full configure run verified
+  no-churn); the 25.10 controller deb still lacks the .so (harmless — compute_pam never
+  runs there; a verified 24.04 deb with the .so was pre-built on hgxa100 2026-08-09 and
+  stashed off-cluster at `~/cerberus-artifacts/` on the admin workstation for the
+  rebuild); flipping pam=False reverts nothing (manual runbook in the PAM plan file /
+  git history).
 - [x] **Port the healthchecks role** — done 2026-08-09, live with `healthchecks=true`:
   check_gpu_setup.py de-OCI'd (metadata/OCA/RTTCC/mlxlink/link-flapping/meshpinger
   deleted — no RDMA fabric; git history keeps them); expected GPU count now comes from
