@@ -56,6 +56,24 @@
   retries: 5
   delay: 5
 
+# Grafana ships with admin/admin; apply the inventory admin_password if the
+# API rejects it (fresh install, or the inventory value changed)
+- name: Check whether the admin password is current
+  uri:
+    url: "{{ grafana_api_url }}/api/org"
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_security.admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 401]
+  register: grafana_admin_check
+  no_log: true
+
+- name: Apply the Grafana admin password
+  become: true
+  command: grafana-cli admin reset-admin-password {{ grafana_security.admin_password | quote }}
+  when: grafana_admin_check.status == 401
+  no_log: true
+
 - name: Create Prometheus datasource in Grafana
   grafana_datasource:
     name: "Prometheus"

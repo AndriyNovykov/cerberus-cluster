@@ -71,6 +71,8 @@
 - name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
+    url_username: "{{ grafana_security.admin_user }}"
+    url_password: "{{ grafana_security.admin_password }}"
     state: present
     commit_message: Updated by ansible
     overwrite: true
@@ -86,6 +88,8 @@
 - name: Import Ceph cluster Grafana dashboard
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
+    url_username: "{{ grafana_security.admin_user }}"
+    url_password: "{{ grafana_security.admin_password }}"
     state: present
     commit_message: Updated by ansible
     overwrite: true

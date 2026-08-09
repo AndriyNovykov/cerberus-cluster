@@ -6,9 +6,11 @@ grafonnet_lib_repo_url: "github.com/grafana/grafonnet-lib/grafonnet@master"
 grafonnet_gen_repo_url: "github.com/grafana/grafonnet/gen/grafonnet-latest@main"
 grafana_api_keys_dir: /etc/opt/lucid-hpc/passwords/grafana
 grafana_api_url: "http://localhost:3000"
+# admin_password comes from the inventory [all:vars]; 'admin' only as a
+# last-resort default for inventories that don't set it
 grafana_security:
   admin_user: admin
-  admin_password: admin
+  admin_password: "{{ admin_password | default('admin') }}"
 grafana_api_keys: 
   - name: "admin"
     role: "Admin"
