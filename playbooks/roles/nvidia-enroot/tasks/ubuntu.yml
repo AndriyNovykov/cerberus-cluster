@@ -20,6 +20,18 @@
       sysctl_file: /etc/sysctl.d/81-enroot.conf
       reload: yes
 
+  # Ubuntu 24.04+ blocks unprivileged user namespaces via AppArmor by default,
+  # which breaks enroot container starts for regular users (verified:
+  # `unshare --user --map-root-user` fails with EPERM). Standard relaxation for
+  # HPC nodes running unprivileged container runtimes.
+  - name: allow unprivileged user namespaces (AppArmor, Ubuntu 24.04+)
+    ansible.posix.sysctl:
+      name: kernel.apparmor_restrict_unprivileged_userns
+      value: '0'
+      sysctl_file: /etc/sysctl.d/81-enroot.conf
+      reload: yes
+    when: ansible_distribution_version is version('24.04', '>=')
+
 
   - name: Download enroot-check
     get_url:
