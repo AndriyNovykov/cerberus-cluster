@@ -70,7 +70,9 @@
 
 - name: Apply the Grafana admin password
   become: true
-  command: grafana-cli admin reset-admin-password {{ grafana_security.admin_password | quote }}
+  command: >-
+    grafana-cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini
+    admin reset-admin-password {{ grafana_security.admin_password | quote }}
   when: grafana_admin_check.status == 401
   no_log: true
 
