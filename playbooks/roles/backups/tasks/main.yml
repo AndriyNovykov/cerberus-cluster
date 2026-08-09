@@ -1,0 +1,21 @@
+---
+# Daily controller-state backup (scripts/backup-controller-state.sh).
+# Root cron: the script needs slapcat, /root/.my.cnf, and the munge key.
+
+- name: Create backup log directory
+  become: true
+  file:
+    path: /opt/lucid-hpc/logs/backups
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Install daily controller-state backup cron
+  become: true
+  cron:
+    name: Backup controller state
+    user: root
+    minute: "30"
+    hour: "0"
+    job: "/opt/lucid-hpc/scripts/backup-controller-state.sh >> /opt/lucid-hpc/logs/backups/backup.log 2>&1"

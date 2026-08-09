@@ -148,13 +148,18 @@ sudo reboot                        # on hgx01: node must return to service
   `/clusterhome` content across first).
 - **User onboarding**: `bin/onboard.sh` (set the variables at the top first).
   Ceph quota TODO is marked inside the script.
+- **Backups**: `scripts/backup-controller-state.sh` (root) tars passwords,
+  LDAP dumps, accounting DB, munge/cluster keys, and the inventory to
+  `/clusterhome/.backups/controller/` (override with `BACKUP_DIR=`, retention
+  via `RETENTION=`, default 14). A daily root cron is installed by
+  `roles/backups`; log at `/opt/lucid-hpc/logs/backups/backup.log`. Restore
+  notes are in the script header.
 
 ## Known gaps / follow-ups
 
-- `healthchecks=False` in the inventory: `check_gpu_setup.py` still contains
-  OCI metadata calls; re-enable after porting.
-- Backups role was removed with the OCI layer (it uploaded to OCI Object
-  Storage); reintroduce against Ceph RGW S3.
+- Controller backups land on CephFS, which currently lives on a compute node
+  (hgxa100) — not true disaster recovery. Upgrade the backup destination to
+  Ceph RGW S3 or off-site storage when either exists.
 - No PXE/automated OS provisioning; consider MAAS when the node count grows
   (H200/MI355/B300 expansion).
 - `/opt/lucid-hpc` path retained for compatibility; renaming is a mechanical

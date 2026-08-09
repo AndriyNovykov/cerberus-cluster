@@ -133,6 +133,8 @@
     - include_role:
         name: cluster-cli
       when: ldap|default(true)|bool
+    - include_role:
+        name: backups
 
 
 - hosts: compute, login, monitoring
