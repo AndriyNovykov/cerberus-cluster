@@ -20,10 +20,9 @@ deployed and green: Slurm + CephFS `/clusterhome` + single-node Ceph on hgxa100.
   contains OCI metadata calls; `healthchecks=False` until cleaned. It is the
   GPU-drain-on-failure safety net; want it before real users.
 - [ ] **Backups** — the OCI backups role was deleted. Minimum: script controller state
-  (`/etc/opt/oci-hpc/passwords/`, `slapcat`, accounting mysqldump, cluster.key) to CephFS
+  (`/etc/opt/lucid-hpc/passwords/`, `slapcat`, accounting mysqldump, cluster.key) to CephFS
   or off-cluster. Proper: against Ceph RGW S3 once it exists.
-- [ ] **`/opt/oci-hpc` → `/opt/lucid-hpc` rename** — mechanical (~200 references); free if
-  done at the rebuild moment when nothing is deployed.
+- [x] **`/opt/oci-hpc` → `/opt/lucid-hpc` rename** — done 2026-08-08 (repo + live cluster).
 
 ## Blocked on hardware / infrastructure decisions
 

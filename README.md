@@ -8,7 +8,7 @@ This branch is the on-prem rework of the original OCI `oci-hpc` quickstart fork
 (the OCI/Terraform version lives on `main`). All cloud provisioning is gone:
 nodes are installed by hand (or by your provisioning tool of choice) and
 configured with Ansible from a static inventory. The deployment path on the
-controller remains `/opt/oci-hpc` for compatibility with the many scripts and
+controller remains `/opt/lucid-hpc` for compatibility with the many scripts and
 roles that reference it.
 
 See [docs/onprem-deploy.md](docs/onprem-deploy.md) for the full bootstrap
@@ -33,7 +33,7 @@ procedure.
   - `slurm_config.sh [--initial]` — regenerate Slurm config only.
   - `onboard.sh` — LDAP + Slurm account onboarding for a new lab/user.
 - `scripts/build-slurm-debs.sh` — build the Slurm .deb consumed by the slurm
-  role (output in `/opt/oci-hpc/slurm_debs/`).
+  role (output in `/opt/lucid-hpc/slurm_debs/`).
 
 ## Cluster model
 
@@ -57,7 +57,7 @@ procedure.
 1. Add a profile to `node_profiles` in `playbooks/group_vars/all.yml`
    (derive `gres_entries[].cores` from `nvidia-smi topo -m` on the node).
 2. Add the host line to `/etc/ansible/hosts` with `node_profile=<name>`.
-3. Run `/opt/oci-hpc/bin/configure.sh`.
+3. Run `/opt/lucid-hpc/bin/configure.sh`.
 
 ## User management
 

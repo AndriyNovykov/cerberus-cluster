@@ -2,7 +2,7 @@
 #
 # Build a Slurm .deb for this cluster on Ubuntu 24.04.
 #
-# Produces /opt/oci-hpc/slurm_debs/slurm-<VERSION>-<ITERATION>_<UBUNTU>_amd64.deb
+# Produces /opt/lucid-hpc/slurm_debs/slurm-<VERSION>-<ITERATION>_<UBUNTU>_amd64.deb
 # matching the filename convention consumed by playbooks/roles/slurm
 # (slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb).
 #
@@ -22,7 +22,7 @@ UBUNTU_VERSION="$VERSION_ID"
 
 VERSION="${SLURM_VERSION:-24.05.1}"
 ITERATION="${SLURM_ITERATION:-1}"
-OUTPUT_DIR="${OUTPUT_DIR:-/opt/oci-hpc/slurm_debs}"
+OUTPUT_DIR="${OUTPUT_DIR:-/opt/lucid-hpc/slurm_debs}"
 JOBS=$(nproc)
 DEB_NAME="slurm-${VERSION}-${ITERATION}_${UBUNTU_VERSION}_amd64.deb"
 

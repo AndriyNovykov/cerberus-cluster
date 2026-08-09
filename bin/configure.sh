@@ -9,7 +9,7 @@
 if [ -n "$1" ]; then
   playbook=$1
 else
-  playbook="/opt/oci-hpc/playbooks/site.yml"
+  playbook="/opt/lucid-hpc/playbooks/site.yml"
 fi
 
 if [ -n "$2" ]; then
@@ -32,7 +32,7 @@ fi
 # Wait for every inventory host to be reachable over SSH before configuring
 # (skip commented-out host lines)
 grep -vE '^[[:space:]]*#' $inventory | grep -oE 'ansible_host=[^ ]+' | awk -F "=" '{print $2}' | sort -u > /tmp/hosts
-/opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
+/opt/lucid-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
 
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need

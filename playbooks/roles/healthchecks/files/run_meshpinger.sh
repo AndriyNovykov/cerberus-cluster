@@ -7,4 +7,4 @@ date
 eval "$(ssh-agent -s)" >/dev/null ; ssh-add ~/.ssh/id_rsa >/dev/null
 
 # Run meshpinger
-/opt/oci-hpc/healthchecks/meshpinger_bm/run_meshpinger "$@"
+/opt/lucid-hpc/healthchecks/meshpinger_bm/run_meshpinger "$@"

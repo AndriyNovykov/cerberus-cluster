@@ -26,17 +26,17 @@ Meshpinger is installed on the controller host of the hpc cluster. Once user is 
 
 - If controller host is supporting only one cluster, run meshpinger on all hosts in that cluster. The cluster is auto-detected in this option.
 ```
-/opt/oci-hpc/healthchecks/run_meshpinger.sh
+/opt/lucid-hpc/healthchecks/run_meshpinger.sh
 ```
 
 - If controller host is supporting more than 1 cluster, run meshpinger on all hosts in a cluster explicitly specified by its clustername
 ```
-/opt/oci-hpc/healthchecks/run_meshpinger.sh --hpcclustername <hpcclustername>
+/opt/lucid-hpc/healthchecks/run_meshpinger.sh --hpcclustername <hpcclustername>
 ```
 
 Run meshpinger on a list of hosts specified in a file. A host can be specified by its IP address or hostname. It is expected that the host will be SSH-able from the controller host
 ```
-/opt/oci-hpc/healthchecks/run_meshpinger.sh --hostlisttfile <filename>
+/opt/lucid-hpc/healthchecks/run_meshpinger.sh --hostlisttfile <filename>
 ```
 
 # Output
@@ -83,7 +83,7 @@ clusterinfo file - cluster_info.txt
 Other options supported are shown in the help text below.
 
 ```
-/opt/oci-hpc/healthchecks/run_meshpinger.sh --help
+/opt/lucid-hpc/healthchecks/run_meshpinger.sh --help
 
 usage: ./run_meshpinger.sh [-h]
                             [--hostlistfile HOSTLISTFILE | --hpcclustername HPCCLUSTERNAME]

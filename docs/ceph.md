@@ -46,20 +46,20 @@ storage nodes arrive:
 Filesystem: `lucidfs` — EC 4+2 data pool (`allow_ec_overwrites`), replicated metadata
 pool (size 3 / min_size 2), one MDS. RGW is a gated flag (`ceph_deploy_rgw`), default off.
 A CephFS client key (`client.lucidfs`) is created by the pools role and stored on the
-controller under `/etc/opt/oci-hpc/passwords/ceph/`; the `cephfs-client` role distributes
+controller under `/etc/opt/lucid-hpc/passwords/ceph/`; the `cephfs-client` role distributes
 it and mounts `/clusterhome` on every node.
 
 ## Runbook
 
 ```bash
 # 1. prep + bootstrap + host join; OSD step prints a dry-run device report and stops
-ansible-playbook /opt/oci-hpc/playbooks/ceph.yml
+ansible-playbook /opt/lucid-hpc/playbooks/ceph.yml
 # 2. after reviewing the report: consume the data devices
-ansible-playbook /opt/oci-hpc/playbooks/ceph.yml -e ceph_confirm_destroy=true
+ansible-playbook /opt/lucid-hpc/playbooks/ceph.yml -e ceph_confirm_destroy=true
 # 3. pools, filesystem, MDS, client key
-ansible-playbook /opt/oci-hpc/playbooks/ceph.yml --tags pools
+ansible-playbook /opt/lucid-hpc/playbooks/ceph.yml --tags pools
 # 4. idempotency check: a full re-run must report zero changes
-ansible-playbook /opt/oci-hpc/playbooks/ceph.yml
+ansible-playbook /opt/lucid-hpc/playbooks/ceph.yml
 ```
 
 Then flip `home_backend=cephfs` in `/etc/ansible/hosts` and run `bin/configure.sh`

@@ -11,7 +11,7 @@ certs, LDAP, munge key, Slurm cluster, and Ceph fsid are all generated.
 ```text
 1. OS install on every node (hostname, static IP, admin user + NOPASSWD sudo,
    openssh-server, python3, controller pubkey in authorized_keys)
-2. On the controller: clone repo to /opt/oci-hpc, run bin/controller.sh,
+2. On the controller: clone repo to /opt/lucid-hpc, run bin/controller.sh,
    ssh-keygen ~/.ssh/cluster.key, distribute cluster.key.pub to all nodes
 3. scripts/build-slurm-debs.sh
 4. cp samples/inventory.example /etc/ansible/hosts and edit: host lines,
@@ -52,9 +52,9 @@ Current target topology (SV4):
 ## 2. Controller bootstrap (`sv5`)
 
 ```bash
-sudo git clone -b on-prem-rework <repo-url> /opt/oci-hpc
-sudo chown -R ubuntu:ubuntu /opt/oci-hpc
-/opt/oci-hpc/bin/controller.sh
+sudo git clone -b on-prem-rework <repo-url> /opt/lucid-hpc
+sudo chown -R ubuntu:ubuntu /opt/lucid-hpc
+/opt/lucid-hpc/bin/controller.sh
 ssh-keygen -t ed25519 -N '' -f ~/.ssh/cluster.key
 ```
 
@@ -64,16 +64,16 @@ Distribute `~/.ssh/cluster.key.pub` into
 ## 3. Build the Slurm package
 
 ```bash
-/opt/oci-hpc/scripts/build-slurm-debs.sh
+/opt/lucid-hpc/scripts/build-slurm-debs.sh
 ```
 
-Output lands in `/opt/oci-hpc/slurm_debs/`. If you change `SLURM_VERSION`,
+Output lands in `/opt/lucid-hpc/slurm_debs/`. If you change `SLURM_VERSION`,
 update `slurm_version` in `playbooks/roles/slurm/defaults/main.yml`.
 
 ## 4. Inventory and configuration
 
 ```bash
-cp /opt/oci-hpc/samples/inventory.example /etc/ansible/hosts
+cp /opt/lucid-hpc/samples/inventory.example /etc/ansible/hosts
 ```
 
 Edit:
@@ -91,7 +91,7 @@ NUMA affinity; they don't block scheduling.
 ## 5. Deploy
 
 ```bash
-/opt/oci-hpc/bin/configure.sh
+/opt/lucid-hpc/bin/configure.sh
 ```
 
 First run installs the NVIDIA driver on the compute nodes; **reboot the GPU
@@ -155,5 +155,5 @@ sudo reboot                        # on hgx01: node must return to service
   Storage); reintroduce against Ceph RGW S3.
 - No PXE/automated OS provisioning; consider MAAS when the node count grows
   (H200/MI355/B300 expansion).
-- `/opt/oci-hpc` path retained for compatibility; renaming is a mechanical
+- `/opt/lucid-hpc` path retained for compatibility; renaming is a mechanical
   follow-up.

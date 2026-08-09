@@ -8,4 +8,4 @@ ceph_meta_pool_size: 3
 ceph_meta_pool_min_size: 2
 # CephFS client identity created for the compute/login nodes
 ceph_client_name: "{{ ceph_fs_name }}"
-ceph_client_secret_dir: /etc/opt/oci-hpc/passwords/ceph
+ceph_client_secret_dir: /etc/opt/lucid-hpc/passwords/ceph

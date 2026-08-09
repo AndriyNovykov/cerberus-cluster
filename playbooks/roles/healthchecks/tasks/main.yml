@@ -1,7 +1,7 @@
 - name: Create systemd unit dirs
   become: true
   file:
-    name: '/opt/oci-hpc/healthchecks'
+    name: '/opt/lucid-hpc/healthchecks'
     state: directory
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
@@ -10,7 +10,7 @@
   become: true
   copy: 
     src: '{{ item }}'
-    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
+    dest: '/opt/lucid-hpc/healthchecks/{{ item }}'
     force: no
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
@@ -30,14 +30,14 @@
 - name: untar meshpinger
   unarchive:
     src: "/tmp/{{mp_filename}}"
-    dest: "/opt/oci-hpc/healthchecks"
+    dest: "/opt/lucid-hpc/healthchecks"
   when: ('controller' in group_names)
 
 - name: Copy files
   become: true
   copy: 
     src: '{{ item }}'
-    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
+    dest: '/opt/lucid-hpc/healthchecks/{{ item }}'
     force: no
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'

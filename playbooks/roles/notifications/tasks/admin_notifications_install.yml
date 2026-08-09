@@ -1,6 +1,6 @@
 - name: Copy triggers directory to /etc/slurm/
   copy:
-    src: /opt/oci-hpc/playbooks/roles/notifications/files/triggers
+    src: /opt/lucid-hpc/playbooks/roles/notifications/files/triggers
     dest: /etc/slurm/
 
 - name: Set ownership and permissions for /etc/slurm/triggers/

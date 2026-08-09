@@ -2,7 +2,7 @@
 - name: Make sure directory exist
   become: true
   file: 
-    path: /opt/oci-hpc/sbin
+    path: /opt/lucid-hpc/sbin
     state: directory
     mode: '0755'
 
@@ -10,7 +10,7 @@
   become: true
   copy: 
     src: control_hyperthreading_ubuntu.sh
-    dest: /opt/oci-hpc/sbin/control_hyperthreading_ubuntu.sh
+    dest: /opt/lucid-hpc/sbin/control_hyperthreading_ubuntu.sh
     mode: '0755'
 
 - name: Copy service unit

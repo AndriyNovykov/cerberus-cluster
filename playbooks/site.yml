@@ -3,7 +3,7 @@
   vars: 
     initial: true
   vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
+    - "/opt/lucid-hpc/conf/queues.conf"
   gather_facts: true
   tasks:
     - include_role:
@@ -290,7 +290,7 @@
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
+    - "/opt/lucid-hpc/conf/queues.conf"
   tasks:
     - include_role:
         name: spack

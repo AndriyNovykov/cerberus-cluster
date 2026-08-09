@@ -22,10 +22,10 @@
   include_role: 
     name: safe_yum
 
-- name: Create /etc/opt/oci-hpc/passwords/openldap
+- name: Create /etc/opt/lucid-hpc/passwords/openldap
   become: true
   file:
-    path: /etc/opt/oci-hpc/passwords/openldap
+    path: /etc/opt/lucid-hpc/passwords/openldap
     state: directory
     owner: ubuntu
     mode: 0770
@@ -35,13 +35,13 @@
 - name: Generate openldap root password
   set_fact:
     tmp_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/openldap/root.txt
+                          '/etc/opt/lucid-hpc/passwords/openldap/root.txt
                            chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Get openldap root password
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc//passwords/openldap/root.txt
+                          '/etc/opt/lucid-hpc//passwords/openldap/root.txt
                            chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Install the openldap and required Packages for Ubuntu

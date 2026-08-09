@@ -3,12 +3,12 @@
   file: 
     state: directory
     mode: '0755'
-    path: /etc/opt/oci-hpc
+    path: /etc/opt/lucid-hpc
 
 - name: create rdma hostfile
   template:
     src: templates/hostfile_rdma.j2
-    dest: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
+    dest: /etc/opt/lucid-hpc/hostfile.rdma.{{ cluster_name }}
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -19,7 +19,7 @@
 - name: create tcp hostfile
   template:
     src: templates/hostfile_tcp.j2
-    dest: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
+    dest: /etc/opt/lucid-hpc/hostfile.tcp.{{ cluster_name }}
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -28,19 +28,19 @@
 
 - name: Copy to all hosts
   copy: 
-    src: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
-    dest: /etc/opt/oci-hpc/hostfile.rdma
+    src: /etc/opt/lucid-hpc/hostfile.rdma.{{ cluster_name }}
+    dest: /etc/opt/lucid-hpc/hostfile.rdma
   when: cluster_network|bool
 
 - name: Copy to all hosts
   copy: 
-    src: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
-    dest: /etc/opt/oci-hpc/hostfile.tcp
+    src: /etc/opt/lucid-hpc/hostfile.tcp.{{ cluster_name }}
+    dest: /etc/opt/lucid-hpc/hostfile.tcp
 
 - name: Create a symbolic link
   file:
-    src: "/etc/opt/oci-hpc/{{ item }}"
-    dest: /etc/opt/oci-hpc/hostfile
+    src: "/etc/opt/lucid-hpc/{{ item }}"
+    dest: /etc/opt/lucid-hpc/hostfile
     owner: root
     group: root
     state: link
@@ -51,8 +51,8 @@
    
 - name: Create a symbolic link
   file:
-    src: "/etc/opt/oci-hpc/{{ item }}"
-    dest: /etc/opt/oci-hpc/hostfile
+    src: "/etc/opt/lucid-hpc/{{ item }}"
+    dest: /etc/opt/lucid-hpc/hostfile
     owner: root
     group: root
     state: link

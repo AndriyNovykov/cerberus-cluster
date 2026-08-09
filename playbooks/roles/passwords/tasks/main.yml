@@ -1,8 +1,8 @@
 ---
-- name: Create /etc/opt/oci-hpc/passwords/
+- name: Create /etc/opt/lucid-hpc/passwords/
   become: true
   file:
-    path: /etc/opt/oci-hpc/passwords/
+    path: /etc/opt/lucid-hpc/passwords/
     state: directory
     owner: "{{ ansible_user }}"
     mode: 0770

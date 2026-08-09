@@ -77,7 +77,7 @@
     msg: >-
       {{ slurm_deb_store }}/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb
       not found on the controller. Build it with
-      /opt/oci-hpc/scripts/build-slurm-debs.sh (see docs/onprem-deploy.md).
+      /opt/lucid-hpc/scripts/build-slurm-debs.sh (see docs/onprem-deploy.md).
   when: not slurm_deb_local.stat.exists
   delegate_to: 127.0.0.1
 

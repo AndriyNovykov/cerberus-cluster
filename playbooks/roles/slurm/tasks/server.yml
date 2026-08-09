@@ -2,13 +2,13 @@
 - name: Generate password for DB user and save it to /etc/trinity/passwords
   set_fact:
     tmp_pwd: '{{ lookup("password",
-                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
+                           "/etc/opt/lucid-hpc/passwords/mysql/slurmdbd.txt
                             chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Get password for DB user from /etc/trinity/passwords)
   set_fact:
     slurmdbd_sql_pwd: '{{ lookup("password",
-                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
+                           "/etc/opt/lucid-hpc/passwords/mysql/slurmdbd.txt
                             chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Install PyMySQL
@@ -172,19 +172,19 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
+    line: alias status='tail /opt/lucid-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
 
 - name: add alias for max nodes distributed evenly
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias max_nodes="python3 /opt/oci-hpc/scripts/max_nodes_partition.py"
+    line: alias max_nodes="python3 /opt/lucid-hpc/scripts/max_nodes_partition.py"
     state: present
 
 - name: add alias for validation of number of nodes, pcie, and gpu throttle check
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias validate="python3 /opt/oci-hpc/scripts/validation.py"
+    line: alias validate="python3 /opt/lucid-hpc/scripts/validation.py"
     state: present
 
 - name: Generate topology.conf

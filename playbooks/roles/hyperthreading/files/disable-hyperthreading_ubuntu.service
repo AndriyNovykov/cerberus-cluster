@@ -5,8 +5,8 @@ After=syslog.target irqbalance.service
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=/opt/oci-hpc/sbin/control_hyperthreading_ubuntu.sh off
-ExecStop=/opt/oci-hpc/sbin/control_hyperthreading_ubuntu.sh on
+ExecStart=/opt/lucid-hpc/sbin/control_hyperthreading_ubuntu.sh off
+ExecStop=/opt/lucid-hpc/sbin/control_hyperthreading_ubuntu.sh on
 
 [Install]
 WantedBy=multi-user.target

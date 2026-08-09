@@ -41,7 +41,7 @@
 
 - name: Ensure Grafana key directory exists
   file:
-    path: "/etc/opt/oci-hpc/passwords/grafana"
+    path: "/etc/opt/lucid-hpc/passwords/grafana"
     state: directory
   delegate_to: localhost
 

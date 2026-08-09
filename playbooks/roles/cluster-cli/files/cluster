@@ -13,7 +13,7 @@ people_dn = 'ou=People,dc=local'
  
 #bind_pass = 'zEEUM6Vrqtfl4hBz0ebF'
 
-with open('/etc/opt/oci-hpc/passwords/openldap/root.txt', 'r') as f: 
+with open('/etc/opt/lucid-hpc/passwords/openldap/root.txt', 'r') as f: 
   bind_pass = f.read().splitlines()[0]
 
 

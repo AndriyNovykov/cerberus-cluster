@@ -11,7 +11,7 @@ import re
 
 
 class BandwidthTest:
-    def __init__(self, iteration=1, size=32000000, bw_test_exe="/opt/oci-hpc/cuda-samples/bin/x86_64/linux/release/bandwidthTest"):
+    def __init__(self, iteration=1, size=32000000, bw_test_exe="/opt/lucid-hpc/cuda-samples/bin/x86_64/linux/release/bandwidthTest"):
         self.iteration = iteration
         self.size = size
         self.bw_test_exe = bw_test_exe
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
     parser.add_argument('-i', dest='iterations', default='1', help='Number of iterations to run Ex. -i 3')
     parser.add_argument('-s', dest='size', default='32000000', help='Message size to run Ex. -s 32000000')
-    parser.add_argument('--bw-test-exe', dest='bw_test_exe', default='/opt/oci-hpc/cuda-samples/bin/x86_64/linux/release/bandwidthTest', help='Path to the bw_test executable')
+    parser.add_argument('--bw-test-exe', dest='bw_test_exe', default='/opt/lucid-hpc/cuda-samples/bin/x86_64/linux/release/bandwidthTest', help='Path to the bw_test executable')
     args = parser.parse_args()
 
     logger.setLevel(args.log_level)

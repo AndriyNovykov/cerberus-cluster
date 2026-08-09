@@ -2,7 +2,7 @@
 # Run the GPU healthcheck prolog on any node with an NVIDIA driver loaded
 if [ -e /dev/nvidia0 ]
 then
-    sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py --slurm > /tmp/latest_healthcheck.log 2>&1
+    sudo python3 /opt/lucid-hpc/healthchecks/check_gpu_setup.py --slurm > /tmp/latest_healthcheck.log 2>&1
     DRAIN_MSG=`cat /tmp/latest_healthcheck.log | grep "Healthcheck::"`
     if [ "$DRAIN_MSG" != "" ]
     then

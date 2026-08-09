@@ -39,18 +39,17 @@ Key concepts:
   nvidia-fabricmanager version-matched to the driver (`nvidia_driver_branch` in group_vars);
   slurmd is systemd-ordered after it. Without FM the GPUs are unusable.
 - **Slurm packages are built locally** with `scripts/build-slurm-debs.sh` into
-  `/opt/oci-hpc/slurm_debs/` on the controller; `roles/slurm/tasks/common.yml` copies from
+  `/opt/lucid-hpc/slurm_debs/` on the controller; `roles/slurm/tasks/common.yml` copies from
   there (fails with instructions if missing). Version pin: `slurm_version` in
   `roles/slurm/defaults/main.yml`.
 
 ## Deployed layout
 
-The repo is deployed to **`/opt/oci-hpc`** on the controller (path kept from the OCI era —
-~200 references; do not rename casually):
+The repo is deployed to **`/opt/lucid-hpc`** on the controller:
 
-- `/opt/oci-hpc/bin/` ⇄ `bin/` — `controller.sh` (bootstrap), `configure.sh` (run site.yml),
+- `/opt/lucid-hpc/bin/` ⇄ `bin/` — `controller.sh` (bootstrap), `configure.sh` (run site.yml),
   `slurm_config.sh [--initial]`, `onboard.sh` (LDAP+Slurm user onboarding)
-- `/opt/oci-hpc/conf/queues.conf` — minimal static queue file loaded via `vars_files`
+- `/opt/lucid-hpc/conf/queues.conf` — minimal static queue file loaded via `vars_files`
 - `/etc/ansible/hosts` — the static inventory; host groups `controller`, `slurm_backup`,
   `login`, `monitoring`, `compute` (children `compute_to_add`+`compute_configured`), `nfs`
 
