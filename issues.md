@@ -106,3 +106,34 @@ changes. Order:
 
 **Pre-wipe batch complete (2026-08-09).** Then: rebuild → post-rebuild the near-term
 list above reaches "safe to onboard the first real lab."
+
+## 24.04 rebuild checklist (planned 2026-08-10)
+
+Follow the greenfield sequence in [docs/onprem-deploy.md](docs/onprem-deploy.md)
+(audited 2026-08-09 against the current repo). SV4-specific notes:
+
+- [ ] Hostname change is `hgxa100` → `hgx01` only (sv5, lucid keep theirs). Update
+  the `[compute_configured]`, `[ceph]`, `[ceph_bootstrap]` host lines and
+  `ceph_mon_ip` accordingly.
+- [ ] Skip the deb build: copy the pre-built, verified
+  `slurm-24.05.1-1_24.04_amd64.deb` from the admin workstation
+  (`~/cerberus-artifacts/`, sha256 starts 79034796) into
+  `/opt/lucid-hpc/slurm_debs/`. It contains pam_slurm_adopt.so.
+- [ ] Seed the repo onto sv5 via git bundle (no git-remote access from the cluster).
+- [ ] Inventory: start from the updated `samples/inventory.example` —
+  `localdisk=False` (hgx01's data NVMes belong to Ceph; RAIDing them via the
+  localdisk role would destroy the OSD plan), `pam=False` initially,
+  `home_backend=nfs` initially, `healthchecks=true`, real 10.20.10.x IPs, set
+  `admin_password`.
+- [ ] Verify `ceph_data_device_model=MZQL23T8HCLS` still matches hgx01's data drives
+  (`lsblk -o NAME,MODEL`); OS drives are MZ1L21T9HCLS and must not match.
+- [ ] Order: configure (NFS homes) → reboot GPU nodes → configure → ceph.yml
+  (dry-run, then `-e ceph_confirm_destroy=true`, then `--tags pools`) →
+  `home_backend=cephfs` + configure → verify per doc §6 (incl. healthcheck run,
+  ceph Prometheus target, first backup) → `pam=True` + configure → re-verify
+  (jobless LDAP SSH denied, job-holder adopted, admin SSH intact).
+- [ ] `nvidia-smi topo -m` on both GPU nodes: a100-hgx8/h100nvl-1 `gres_entries`
+  cores should carry over (same hardware), confirm anyway; `slurm_config.sh` if
+  they changed.
+- [ ] Known losses at wipe (intentional, no state kept): CephFS-hosted backups,
+  Grafana/Prometheus history, LDAP test users, the old Ceph fsid.

@@ -85,7 +85,11 @@ latency_check=False
 change_hostname=False
 hostname_convention=
 hyperthreading=true
-localdisk=true
+# DANGER if true: the localdisk role RAIDs every unformatted data NVMe at
+# configure time — on a host whose data drives belong to Ceph (see [ceph]
+# below) that destroys the OSD device plan. Leave False when any compute
+# host doubles as a Ceph host.
+localdisk=False
 redundancy=False
 log_vol=False
 nvme_path=/mnt/localdisk/
