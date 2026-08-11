@@ -54,12 +54,20 @@
     state: present
     line: 'session required    pam_mkhomedir.so skel=/etc/skel umask=0022'
 
-- name: Fix common-password
-  replace:
-    path: /etc/pam.d/common-password
-    backup: yes
-    regexp: '^.*use_authtok.*$'
-    replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
+# pam-auth-update already chains unix -> sss -> ldap from the profiles that
+# libpam-sss/libpam-ldapd register, so common-password needs no edits here.
+# The old 'replace' on '^.*use_authtok.*$' rewrote the pam_unix and pam_sss
+# lines into duplicate pam_ldap ones, breaking local password changes; the
+# tasks below only repair hosts it already mangled.
+- name: Check common-password still has pam_unix
+  command: grep -q '^password.*pam_unix\.so' /etc/pam.d/common-password
+  register: pam_unix_present
+  changed_when: false
+  failed_when: false
+
+- name: Regenerate PAM stacks mangled by the old use_authtok replace
+  command: pam-auth-update --package --force
+  when: pam_unix_present.rc != 0
 
 - name: Install the openldap and required Packages for Ubuntu
   vars: 
