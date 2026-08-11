@@ -1,0 +1,8 @@
+---
+fail2ban_maxretry: 4
+fail2ban_findtime: 10m
+fail2ban_bantime: 1h
+fail2ban_bantime_increment: true
+# Never ban these sources (self-DoS guard). Trusted subnets are appended so a
+# teammate mistyping a passphrase can't ban the office or the cluster LAN.
+fail2ban_ignoreip: "127.0.0.1/8 ::1 {{ firewall_trusted_subnets | default([]) | join(' ') }}"

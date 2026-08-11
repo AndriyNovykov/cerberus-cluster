@@ -1,0 +1,14 @@
+---
+# Ansible itself connects as {{ compute_username }} with cluster.key, so on any
+# host with ssh_hardening=true that user must belong to one of the
+# sshd_allow_groups (privilege_group puts cluster-admins/cluster-users in place;
+# membership is handled at onboarding).
+- name: Install sshd hardening drop-in
+  template:
+    src: 10-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd

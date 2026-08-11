@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+# Escape hatch for a heavy admin task:
+#   systemctl set-property user-<uid>.slice CPUQuota=
+[Slice]
+CPUQuota={{ user_slice_cpu_quota | default('200%') }}
+MemoryHigh={{ user_slice_memory_high | default('3G') }}
+MemoryMax={{ user_slice_memory_max | default('4G') }}
+TasksMax={{ user_slice_tasks_max | default(256) }}

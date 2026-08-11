@@ -21,3 +21,27 @@
     name: "{{ansible_user}}"
     groups: "{{privilege_group_name}}"
     append: yes
+
+# SSH access-control groups consumed by sshd AllowGroups (roles/ssh, gated by
+# ssh_hardening). Fixed gids keep them identical across nodes; LDAP users can be
+# members of these local groups via NSS.
+- name: create cluster-admins group
+  become: true
+  group:
+    name: cluster-admins
+    gid: 9878
+    state: present
+
+- name: create cluster-users group
+  become: true
+  group:
+    name: cluster-users
+    gid: 9879
+    state: present
+
+- name: "add {{ ansible_user }} to cluster-users so Ansible keeps SSH access on hardened hosts"
+  become: true
+  user:
+    name: "{{ ansible_user }}"
+    groups: cluster-users
+    append: yes

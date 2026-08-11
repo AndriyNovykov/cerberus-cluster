@@ -1,0 +1,26 @@
+---
+
+# python3-systemd is required for backend=systemd in jail.local.
+- name: Install fail2ban
+  vars:
+    package_name:
+      - fail2ban
+      - python3-systemd
+    package_state: present
+  include_role:
+    name: safe_yum
+
+- name: Install jail.local
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban
+
+- name: Enable fail2ban
+  systemd:
+    name: fail2ban
+    enabled: yes
+    state: started

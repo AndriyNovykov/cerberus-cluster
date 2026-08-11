@@ -123,3 +123,26 @@ privilege_sudo=true
 privilege_group_name=privilege
 admin_username=admin
 admin_password=CHANGE_ME
+
+# --- security ---
+# Exposure hardening for internet-facing hosts. Defaults are OFF everywhere;
+# turn the full set on for controller/login via group vars (below). Subnet
+# lists and quota values live in playbooks/group_vars/all.yml
+# (firewall_trusted_subnets, sshd_allow_groups, user_slice_*).
+# NOTE ssh_hardening makes sshd keys-only with AllowGroups — make sure
+# compute_username is in cluster-users and your admins are in cluster-admins
+# BEFORE enabling, or Ansible/operators lose SSH (privilege_group adds
+# compute_username automatically).
+[controller:vars]
+ssh_hardening=true
+firewall_mode=ufw
+fail2ban=true
+unattended_upgrades=true
+user_slice_limits=true
+
+[login:vars]
+ssh_hardening=true
+firewall_mode=ufw
+fail2ban=true
+unattended_upgrades=true
+user_slice_limits=true

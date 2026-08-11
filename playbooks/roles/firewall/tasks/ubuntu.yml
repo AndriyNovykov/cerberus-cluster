@@ -1,21 +1,14 @@
 ---
 
-- name: disable ufw
-  service: 
-    name: ufw
-    state: stopped
-    enabled: no
+# firewall_mode=off  (default): no host firewall — compute nodes need open
+#                    traffic or MPI fails.
+# firewall_mode=ufw: default-deny hardening for exposed hosts (controller/login):
+#                    allow SSH from anywhere plus everything from the trusted
+#                    subnets (colo LAN, VPN pool). Do NOT run off-iptables.sh in
+#                    this mode — it flushes the rules ufw just installed.
 
-# it still need update to iptables rules to accept traffic or else mpi traffic fails 
+- include_tasks: ubuntu-off.yml
+  when: firewall_mode | default('off') == 'off'
 
-- name: Copy off-iptables.sh
-  copy:
-    src: off-iptables.sh
-    dest: '/tmp/off-iptables.sh'
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-    mode: '0755'
-
-- name: execute off-iptables.sh
-  command: "sudo /tmp/off-iptables.sh"
-
+- include_tasks: ubuntu-ufw.yml
+  when: firewall_mode | default('off') == 'ufw'

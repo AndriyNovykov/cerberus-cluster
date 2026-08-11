@@ -1,1 +1,4 @@
 - include_tasks: common.yml
+
+- include_tasks: sshd-hardening.yml
+  when: ssh_hardening | default(false) | bool

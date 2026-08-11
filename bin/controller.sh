@@ -28,7 +28,9 @@ function fix_apt {
 }
 fix_apt
 
-# Unattended upgrades fight with Ansible apt runs and can restart services mid-deploy
+# Unattended upgrades fight with Ansible apt runs and can restart services mid-deploy.
+# roles/unattended-upgrades re-enables this at configure time (security-only,
+# no auto-reboot) on hosts with unattended_upgrades=true in the inventory.
 sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 sudo apt purge -y --auto-remove unattended-upgrades
 sudo systemctl disable apt-daily-upgrade.timer

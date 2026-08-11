@@ -32,6 +32,13 @@
     - etc-hosts
     - mpivars
     - iptables
+  tasks:
+    - include_role:
+        name: fail2ban
+      when: fail2ban | default(false) | bool
+    - include_role:
+        name: unattended-upgrades
+      when: unattended_upgrades | default(false) | bool
 
 - name: Disable dynamic MOTD
   hosts: all

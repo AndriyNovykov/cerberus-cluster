@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Keys-only SSH. Sorts before 50-cloud-init.conf; first-match wins in sshd.
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+AuthenticationMethods publickey
+{% if sshd_allow_groups | default([]) | length > 0 %}
+AllowGroups {{ sshd_allow_groups | join(' ') }}
+{% endif %}
+MaxAuthTries 3
+LoginGraceTime 20
+X11Forwarding no

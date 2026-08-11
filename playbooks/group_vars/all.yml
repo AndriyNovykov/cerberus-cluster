@@ -54,3 +54,29 @@ node_profiles:
 # Profile of the host currently being configured (compute nodes set
 # node_profile in the inventory; controller/login default to cpu).
 this_node_profile: "{{ node_profiles[node_profile | default('cpu')] }}"
+
+# --- security -----------------------------------------------------------
+# Hardening for internet-exposed hosts (controller/login). The per-host toggles
+# (ssh_hardening, firewall_mode, fail2ban, unattended_upgrades,
+# user_slice_limits) live in the inventory — see samples/inventory.example.
+# Values below mirror what was hand-applied to sv5 on 2026-08-10
+# (~/Projects/greenfield/public-ip/session-log.md).
+
+# Sources allowed through ufw unrestricted, and exempt from fail2ban bans:
+# the colo LAN (NFS/LDAP/slurm/ceph/metrics) and the FortiClient VPN pool.
+firewall_trusted_subnets:
+  - 10.20.10.0/24
+  - 10.212.134.0/24
+
+# sshd AllowGroups on hardened hosts. Groups are created by privilege_group
+# (cluster-admins gid 9878, cluster-users gid 9879); membership is per-user
+# (onboarding adds users to cluster-users; admins are added by hand).
+sshd_allow_groups:
+  - cluster-admins
+  - cluster-users
+
+# Per-user systemd slice caps on hardened interactive hosts.
+user_slice_cpu_quota: '200%'
+user_slice_memory_high: '3G'
+user_slice_memory_max: '4G'
+user_slice_tasks_max: 256

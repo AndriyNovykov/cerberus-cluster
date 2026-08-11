@@ -1,9 +1,29 @@
 ---
 - block:
-  - name: Install limits.conf 
-    template: 
-      src: "templates/limits.j2" 
-      dest: "/etc/security/limits.d/50-hpc-limits.conf" 
+  - name: Install limits.conf
+    template:
+      src: "templates/limits.j2"
+      dest: "/etc/security/limits.d/50-hpc-limits.conf"
       owner: root
       group: root
       mode: 0644
+
+# Per-user systemd slice caps for exposed interactive hosts (controller/login).
+# Caps interactive sessions only — system services are unaffected. Not for
+# compute: pam_slurm_adopt moves SSH sessions into job cgroups there.
+- name: Create user-.slice.d directory
+  file:
+    path: /etc/systemd/system/user-.slice.d
+    state: directory
+    mode: '0755'
+  when: user_slice_limits | default(false) | bool
+
+- name: Install per-user slice limits
+  template:
+    src: "templates/user-slice.j2"
+    dest: "/etc/systemd/system/user-.slice.d/50-limits.conf"
+    owner: root
+    group: root
+    mode: 0644
+  when: user_slice_limits | default(false) | bool
+  notify: systemd daemon-reload

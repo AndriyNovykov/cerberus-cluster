@@ -1,0 +1,4 @@
+---
+# off: no host firewall (compute default — MPI traffic fails otherwise)
+# ufw: default-deny with 22/tcp public + firewall_trusted_subnets (exposed hosts)
+firewall_mode: 'off'
